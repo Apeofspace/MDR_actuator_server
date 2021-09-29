@@ -13,7 +13,7 @@ def sendthread():
             break
         if connected:
             try:
-                sleep(0.01)
+                # sleep(0.01)
                 i = scale.get()
                 i = str(i).encode()
                 i = i.zfill(4)
