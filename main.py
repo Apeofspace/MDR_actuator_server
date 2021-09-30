@@ -35,18 +35,25 @@ def sinwaveControl(f):
     k = k + dt * float(f)
     sinwave = math.sin(2 * math.pi * k)  # -1..1
     sinwave += 1  # 0..2
-    sinwave = (sinwave * 0xfff) / 2  # 0..0xFFF
+    # sinwave = (sinwave * 0xfff) / 2  # 0..0xFFF
+    leftLim = 0x100
+    rightLim = 0xEFF
+    sinwave = (sinwave * (rightLim-leftLim))/2 + leftLim
     return sinwave
 
-
+ri = 0
 def readthread():
+    global ri
     while True:
         if stopflag:
             break
         if connected:
             try:
                 line = ser.read(size=2)
-                scaleread.set(int.from_bytes(line, "little"))
+                ri+=1
+                if ri>20: #временный хак
+                    scaleread.set(int.from_bytes(line, "little"))
+                    ri=0
             except serial.SerialException:
                 disconnect()
 
@@ -65,10 +72,9 @@ def btnconnect():
 
 
 def connect():
-    global senderthread, readerthread, connected, stopflag, told
+    global senderthread, readerthread, connected, stopflag, told, k
     try:
         readerthread = threading.Thread(target=readthread, daemon=True, name="readerthread")
-        # senderthread = threading.Thread(target=lambda: sendthread(sinwaveControl, 1), daemon=True, name="senderthread")
         senderthread = threading.Thread(target=sendthread, daemon=True, name="senderthread")
         ser.baudrate = cbbaud.get()
         p = re.search("COM[0-9]+", cb.get())
@@ -80,6 +86,7 @@ def connect():
             stopflag = False
             readerthread.start()
             senderthread.start()
+            k = 0
             told = time.time()
             connected = True
             labelStatus.configure(text='Подключено к {}'.format(ser.portstr))
@@ -107,6 +114,7 @@ def disconnect():
     finally:
         ser.close()
 
+
 def sinhertzcallback(sinhertz):
     global hertz
     d = re.match("(\d+(\.)?(\d+)?)",sinhertz.get())
@@ -116,6 +124,10 @@ def sinhertzcallback(sinhertz):
     else:
         hertz = 0
 
+def sincheckboxChecked():
+    global k, told
+    # k = 0
+    told = time.time()
 
 
 told = k = 0
@@ -132,7 +144,7 @@ root = tk.Tk()
 frame3 = tk.Frame(root, padx=20, pady=20)
 frame3.pack(expand=True, fill='both', side='top')
 sinenabled = tk.IntVar()
-sincheckbox = tk.Checkbutton(frame3, text="Синусоида", variable=sinenabled)
+sincheckbox = tk.Checkbutton(frame3, text="Синусоида", variable=sinenabled, command = sincheckboxChecked)
 sincheckbox.pack(side="left")
 sinhertz = tk.StringVar()
 sinhertz.set('1')
