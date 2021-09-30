@@ -3,23 +3,41 @@ import tkinter as tk
 from tkinter import ttk
 import serial
 import serial.tools.list_ports
-from time import sleep
 import re
+import math
+import time
 
 
 def sendthread():
+    global sinenabled, sinhertz
     while True:
         if stopflag:
             break
         if connected:
             try:
-                # sleep(0.01)
-                i = scale.get()
-                i = str(i).encode()
-                i = i.zfill(4)
-                ser.write(i)
+                if sinenabled.get():
+                    scale.set(sinwaveControl(hertz))  # сделать глобальную переменную и метод который вызывается когда менется значение в поле. тогда и будет меняться глобальная переменная
+                ser.write(getAngleFromScale())
             except serial.SerialException:
                 disconnect()
+
+
+def getAngleFromScale():
+    global scale
+    return (str(scale.get()).encode()).zfill(4)
+
+
+def sinwaveControl(f):
+    global told, k
+    tnew = time.time()
+    dt = tnew - told  # сколько прошло секунд
+    told = tnew
+    k = k + dt * float(f)
+    sinwave = math.sin(2 * math.pi * k)  # -1..1
+    sinwave += 1  # 0..2
+    sinwave = (sinwave * 0xfff) / 2  # 0..0xFFF
+    return sinwave
+
 
 def readthread():
     while True:
@@ -27,10 +45,11 @@ def readthread():
             break
         if connected:
             try:
-                line = ser.read(size = 2)
+                line = ser.read(size=2)
                 scaleread.set(int.from_bytes(line, "little"))
             except serial.SerialException:
                 disconnect()
+
 
 def on_closing():
     disconnect()
@@ -46,12 +65,10 @@ def btnconnect():
 
 
 def connect():
-    global connected
-    global senderthread
-    global readerthread
-    global stopflag
+    global senderthread, readerthread, connected, stopflag, told
     try:
         readerthread = threading.Thread(target=readthread, daemon=True, name="readerthread")
+        # senderthread = threading.Thread(target=lambda: sendthread(sinwaveControl, 1), daemon=True, name="senderthread")
         senderthread = threading.Thread(target=sendthread, daemon=True, name="senderthread")
         ser.baudrate = cbbaud.get()
         p = re.search("COM[0-9]+", cb.get())
@@ -63,6 +80,7 @@ def connect():
             stopflag = False
             readerthread.start()
             senderthread.start()
+            told = time.time()
             connected = True
             labelStatus.configure(text='Подключено к {}'.format(ser.portstr))
             buttonConnect["text"] = "Disconnect"
@@ -72,8 +90,7 @@ def connect():
 
 
 def disconnect():
-    global senderthread
-    global readerthread
+    global senderthread, readerthread
     try:
         if senderthread is not None or readerthread is not None:
             global stopflag
@@ -90,24 +107,53 @@ def disconnect():
     finally:
         ser.close()
 
+def sinhertzcallback(sinhertz):
+    global hertz
+    d = re.match("(\d+(\.)?(\d+)?)",sinhertz.get())
+    if d is not None:
+        sinhertz.set(d.group(1))
+        hertz = d.group(1)
+    else:
+        hertz = 0
 
+
+
+told = k = 0
 senderthread = None
 readerthread = None
-ser = serial.Serial()
 stopflag = False
 connected = False
+hertz = 1
+
+ser = serial.Serial()
 root = tk.Tk()
-frame1 = tk.Frame(root, padx=20, pady=100)
+
+# frame3
+frame3 = tk.Frame(root, padx=20, pady=20)
+frame3.pack(expand=True, fill='both', side='top')
+sinenabled = tk.IntVar()
+sincheckbox = tk.Checkbutton(frame3, text="Синусоида", variable=sinenabled)
+sincheckbox.pack(side="left")
+sinhertz = tk.StringVar()
+sinhertz.set('1')
+sinhertz.trace("w", lambda name, index, mode, sinhertz = sinhertz: sinhertzcallback(sinhertz))
+sinhertzentry = tk.Entry(frame3, text='1', textvariable=sinhertz)
+sinhertzentry.pack(side="left", padx=5)
+sinlabel = tk.Label(frame3, text="Гц").pack(side='left', padx=5)
+# frame1
+frame1 = tk.Frame(root, padx=20, pady=50)
 frame1.pack(expand=True, fill='both', side='top')
-labelscale = tk.Label(frame1, text = "Командный сигнал")
+labelscale = tk.Label(frame1, text="Командный сигнал")
 labelscale.pack()
 scale = tk.Scale(frame1, from_=0, to=0xfff, orient=tk.HORIZONTAL)
 scale.set(2000)
 scale.pack(fill='x')
-labelscaleread = tk.Label(frame1, text = "Отклонение объекта управления")
+labelscaleread = tk.Label(frame1, text="Отклонение объекта управления")
 labelscaleread.pack()
 scaleread = tk.Scale(frame1, from_=0, to=0xfff, orient=tk.HORIZONTAL)
 scaleread.pack(fill='x')
+
+# frame2
 frame2 = tk.Frame(root, pady=20)
 frame2.pack(expand=True, fill='both', side='top')
 CBvar = tk.StringVar()
@@ -118,12 +164,14 @@ cb.set('COM13')
 cb.pack(side='left', padx=20)
 CBvarbaud = tk.StringVar()
 cbbaud = tk.ttk.Combobox(frame2, textvariable=CBvarbaud)
-cbbaud['values'] = (300, 600, 1200, 1800, 2400, 3600, 4800, 7200, 9600, 14400, 19200, 28800, 38400, 57600, 115200, 230400, 500000)
+cbbaud['values'] = (
+    300, 600, 1200, 1800, 2400, 3600, 4800, 7200, 9600, 14400, 19200, 28800, 38400, 57600, 115200, 230400, 500000)
 cbbaud.set(115200)
 cbbaud.pack(side='left', padx=20)
-buttonConnect = tk.Button(frame2, text="Connect", command=btnconnect, width = 30)
+buttonConnect = tk.Button(frame2, text="Connect", command=btnconnect, width=30)
 buttonConnect.pack(side='left', padx=30)
-labelStatus = tk.Label(frame2, text="Not connected", width = 30)
+labelStatus = tk.Label(frame2, text="Not connected", width=30)
 labelStatus.pack(side='left', padx=5)
+
 root.protocol("WM_DELETE_WINDOW", on_closing)
 root.mainloop()
