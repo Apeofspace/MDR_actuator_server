@@ -6,6 +6,8 @@ import serial.tools.list_ports
 import re
 import math
 import time
+import csv
+import datetime
 
 
 def sendthread():
@@ -44,18 +46,23 @@ def sinwaveControl(f):
 ri = 0
 def readthread():
     global ri
-    while True:
-        if stopflag:
-            break
-        if connected:
-            try:
-                line = ser.read(size=2)
-                ri+=1
-                if ri>20: #временный хак
-                    scaleread.set(int.from_bytes(line, "little"))
-                    ri=0
-            except serial.SerialException:
-                disconnect()
+    with open("Data_{}.csv".format(datetime.datetime.now().strftime("%Y_%m_%d-%H%M%S")), 'w', newline='') as csv_file:
+        csv_writer = csv.DictWriter(csv_file, fieldnames=["Time COM", "Time OBJ", "COM", "OBJ"])
+        csv_writer.writeheader()
+        while True:
+            if stopflag:
+                break
+            if connected:
+                try:
+                    line = ser.read(size=16)
+                    csv_writer.writerow({'Time COM':int.from_bytes(line[:4], "little"),  'Time OBJ':int.from_bytes(line[4:8], "little"), 'COM':int.from_bytes(line[8:12], "little"), 'OBJ':int.from_bytes(line[12:16], "little")})
+                    ri+=1
+                    if ri>20: #временный хак
+                        scaleread.set(int.from_bytes(line[12:16], "little"))
+                        ri=0
+                except serial.SerialException:
+                    disconnect()
+
 
 
 def on_closing():
