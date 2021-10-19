@@ -18,8 +18,12 @@ def sendthread():
         if connected:
             try:
                 if sinenabled.get():
-                    scale.set(sinwaveControl(hertz))  # сделать глобальную переменную и метод который вызывается когда менется значение в поле. тогда и будет меняться глобальная переменная
-                ser.write(getAngleFromScale())
+                    tosend=sinwaveControl(hertz)
+                    scale.set(tosend)  # сделать глобальную переменную и метод который вызывается когда менется значение в поле. тогда и будет меняться глобальная переменная
+                    tosend = (str(int(tosend)).encode()).zfill(4)
+                    ser.write(tosend)
+                else:
+                    ser.write(getAngleFromScale())
             except serial.SerialException:
                 disconnect()
 
@@ -31,7 +35,7 @@ def getAngleFromScale():
 
 def sinwaveControl(f):
     global told, k
-    tnew = time.time()
+    tnew = take_time()
     dt = tnew - told  # сколько прошло секунд
     told = tnew
     k = k + dt * float(f)
@@ -64,7 +68,6 @@ def readthread():
                     disconnect()
 
 
-
 def on_closing():
     disconnect()
     root.quit()
@@ -77,6 +80,8 @@ def btnconnect():
     else:
         disconnect()
 
+def take_time():
+    return time.perf_counter()
 
 def connect():
     global senderthread, readerthread, connected, stopflag, told, k
@@ -94,7 +99,7 @@ def connect():
             readerthread.start()
             senderthread.start()
             k = 0
-            told = time.time()
+            told = take_time()
             connected = True
             labelStatus.configure(text='Подключено к {}'.format(ser.portstr))
             buttonConnect["text"] = "Disconnect"
@@ -134,7 +139,7 @@ def sinhertzcallback(sinhertz):
 def sincheckboxChecked():
     global k, told
     # k = 0
-    told = time.time()
+    told = take_time()
 
 
 told = k = 0
