@@ -8,8 +8,8 @@ xcom, ycom, xobj, yobj = [], [], [], []
 try:
     arg = sys.argv[1]
 except:
-    print("""Use -latest or a filename as an argument""")
-    sys.exit()
+    print("""Use -latest or a filename as an argument \n Default: -latest""")
+    arg = '-latest'
 if arg == '-latest' or 'l':
     latest = None
     for i in re.findall("Data_\d+_\d\d_\d\d-\d+\.csv", ' '.join(os.listdir())):
@@ -25,17 +25,17 @@ if arg == '-latest' or 'l':
         arg = latest
         print("Opening file: {}".format(arg))
 try:
-    with open(arg,"r", newline='') as csv_file:
+    with open(arg, "r", newline='') as csv_file:
         reader = csv.DictReader(csv_file)
         i = 0
         for row in reader:
             if i == 0:
-                initial_com_time = float(row['Time COM'])/80000
+                initial_com_time = float(row['Time COM']) / 80000
                 initial_obj_time = float(row['Time OBJ']) / 80000
             if row != {'Time COM': '0', 'Time OBJ': '0', 'COM': '0', 'OBJ': '0'}:
-                xcom.append(float(row['Time COM'])/80000-initial_com_time)
+                xcom.append(float(row['Time COM']) / 80000 - initial_com_time)
                 ycom.append(int(row['COM']))
-                xobj.append(float(row['Time OBJ'])/80000-initial_obj_time)
+                xobj.append(float(row['Time OBJ']) / 80000 - initial_obj_time)
                 yobj.append(int(row['OBJ']))
                 i += 1
 
@@ -55,6 +55,7 @@ try:
 
     # ymin, ymax = ax.get_ylim()
     # ax.set_yticks(np.round(np.linspace(ymin, ymax, N), 2))
+    fig.canvas.manager.set_window_title(arg)
     plt.xlabel("[мс]")
     plt.grid(b=True, which='major', axis='both')
     fig.legend()
