@@ -7,12 +7,12 @@ import re
 xcom, ycom, xobj, yobj = [], [], [], []
 try:
     arg = sys.argv[1]
-except:
-    print("""Use -latest or a filename as an argument \n Default: -latest""")
+except Exception:
+    print("""Use -latest or a filename as an argument \nDefault: -latest""")
     arg = '-latest'
-if arg == '-latest' or 'l':
+if arg == '-latest' or arg == 'l':
     latest = None
-    for i in re.findall("Data_\d+_\d\d_\d\d-\d+\.csv", ' '.join(os.listdir())):
+    for i in re.findall("Data_\d+_\d+_\d+-\d+\.csv", ' '.join(os.listdir())):
         if latest is None:
             latest = i
         else:
@@ -23,8 +23,8 @@ if arg == '-latest' or 'l':
         sys.exit()
     else:
         arg = latest
-        print("Opening file: {}".format(arg))
 try:
+    print("Opening file: {}".format(arg))
     with open(arg, "r", newline='') as csv_file:
         reader = csv.DictReader(csv_file)
         i = 0
@@ -42,19 +42,6 @@ try:
     fig, ax = plt.subplots(tight_layout=True)
     line1, = ax.plot(xcom, ycom, label='Управляющий сигнал')
     line2, = ax.plot(xobj, yobj, label='Значение с потенциометра')
-
-    # every_nth = 100
-    # for n, label in enumerate(ax.xaxis.get_ticklabels()):
-    #     if n % every_nth != 0:
-    #         label.set_visible(False)
-    #
-    # every_nth = 10
-    # for n, label in enumerate(ax.yaxis.get_ticklabels()):
-    #     if n % every_nth != 0:
-    #         label.set_visible(False)
-
-    # ymin, ymax = ax.get_ylim()
-    # ax.set_yticks(np.round(np.linspace(ymin, ymax, N), 2))
     fig.canvas.manager.set_window_title(arg)
     plt.xlabel("[мс]")
     plt.grid(b=True, which='major', axis='both')

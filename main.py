@@ -18,8 +18,9 @@ def sendthread():
         if connected:
             try:
                 if sinenabled.get():
-                    tosend=sinwaveControl(hertz)
-                    scale.set(tosend)  # сделать глобальную переменную и метод который вызывается когда менется значение в поле. тогда и будет меняться глобальная переменная
+                    tosend = sinwaveControl(hertz)
+                    scale.set(
+                        tosend)  # сделать глобальную переменную и метод который вызывается когда менется значение в поле. тогда и будет меняться глобальная переменная
                     tosend = (str(int(tosend)).encode()).zfill(4)
                     ser.write(tosend)
                 else:
@@ -41,13 +42,15 @@ def sinwaveControl(f):
     k = k + dt * float(f)
     sinwave = math.sin(2 * math.pi * k)  # -1..1
     sinwave += 1  # 0..2
-    # sinwave = (sinwave * 0xfff) / 2  # 0..0xFFF
     leftLim = 0x100
     rightLim = 0xEFF
-    sinwave = (sinwave * (rightLim-leftLim))/2 + leftLim
+    sinwave = (sinwave * (rightLim - leftLim)) / 2 + leftLim
     return sinwave
 
+
 ri = 0
+
+
 def readthread():
     global ri
     with open("Data_{}.csv".format(datetime.datetime.now().strftime("%Y_%m_%d-%H%M%S")), 'w', newline='') as csv_file:
@@ -58,12 +61,16 @@ def readthread():
                 break
             if connected:
                 try:
-                    line = ser.read(size=16)
-                    csv_writer.writerow({'Time COM':int.from_bytes(line[:4], "little"),  'Time OBJ':int.from_bytes(line[4:8], "little"), 'COM':int.from_bytes(line[8:12], "little"), 'OBJ':int.from_bytes(line[12:16], "little")})
-                    ri+=1
-                    if ri>20: #временный хак
-                        scaleread.set(int.from_bytes(line[12:16], "little"))
-                        ri=0
+                    line = ser.read(size=20)
+                    csv_writer.writerow({'Time COM': int.from_bytes(line[4:12], "little"),
+                                         'Time OBJ': int.from_bytes(line[12:20], "little"),
+                                         'COM': int.from_bytes(line[2:4], "little"),
+                                         'OBJ': int.from_bytes(line[0:2], "little")})
+
+                    ri += 1
+                    if ri > 20:  # временный хак
+                        scaleread.set(int.from_bytes(line[2:4], "little"))
+                        ri = 0
                 except serial.SerialException:
                     disconnect()
 
@@ -80,8 +87,10 @@ def btnconnect():
     else:
         disconnect()
 
+
 def take_time():
     return time.perf_counter()
+
 
 def connect():
     global senderthread, readerthread, connected, stopflag, told, k
@@ -129,12 +138,13 @@ def disconnect():
 
 def sinhertzcallback(sinhertz):
     global hertz
-    d = re.match("(\d+(\.)?(\d+)?)",sinhertz.get())
+    d = re.match("(\d+(\.)?(\d+)?)", sinhertz.get())
     if d is not None:
         sinhertz.set(d.group(1))
         hertz = d.group(1)
     else:
         hertz = 0
+
 
 def sincheckboxChecked():
     global k, told
@@ -156,11 +166,11 @@ root = tk.Tk()
 frame3 = tk.Frame(root, padx=20, pady=20)
 frame3.pack(expand=True, fill='both', side='top')
 sinenabled = tk.IntVar()
-sincheckbox = tk.Checkbutton(frame3, text="Синусоида", variable=sinenabled, command = sincheckboxChecked)
+sincheckbox = tk.Checkbutton(frame3, text="Синусоида", variable=sinenabled, command=sincheckboxChecked)
 sincheckbox.pack(side="left")
 sinhertz = tk.StringVar()
 sinhertz.set('1')
-sinhertz.trace("w", lambda name, index, mode, sinhertz = sinhertz: sinhertzcallback(sinhertz))
+sinhertz.trace("w", lambda name, index, mode, sinhertz=sinhertz: sinhertzcallback(sinhertz))
 sinhertzentry = tk.Entry(frame3, text='1', textvariable=sinhertz)
 sinhertzentry.pack(side="left", padx=5)
 sinlabel = tk.Label(frame3, text="Гц").pack(side='left', padx=5)
