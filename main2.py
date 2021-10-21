@@ -1,7 +1,5 @@
-import queue
 import threading
 import multiprocessing
-import tkinter
 import tkinter as tk
 from tkinter import ttk
 import serial
@@ -19,30 +17,35 @@ from queue import Empty, Full
 
 
 class MainWindow(tk.Frame):
-    def __init__(self, parent, *args, **kwargs):
+    def __init__(self, parent, connected_flag, stop_flag, msg_queue, main_queue, lock, hertz, *args, **kwargs):
         tk.Frame.__init__(self, parent, *args, **kwargs)
+        self.connected_flag = connected_flag
+        self.stop_flag = stop_flag
+        self.msg_queue = msg_queue
+        self.lock = lock
+        self.main_queue = main_queue
+        self.hertz = hertz
+        self.reader_process = None
+        self.start_process_thread = None
         # PLOT
         self.fig, self.ax = plt.subplots(figsize=(10, 5), tight_layout=True)
         self.canvas = FigureCanvasTkAgg(self.fig, master=self)
         self.toolbar = NavigationToolbar2Tk(self.canvas, self)
         self.toolbar.update()
         self.toolbar.pack(side='top')
-
         self.x = np.arange(0, 2 * np.pi, 0.01)
-        self.line1, = self.ax.plot(self.x, np.sin(self.x), label='Управляющий сигнал')
-        self.line2, = self.ax.plot(self.x, np.sin(self.x) + np.pi, label='Значение с потенциометра')
+        self.line1, = self.ax.plot(self.x, 2000*np.sin(self.x), label='Управляющий сигнал')
+        self.line2, = self.ax.plot(self.x, 2000*np.sin(self.x) + np.pi, label='Значение с потенциометра')
         self.fig.legend()
         plt.xlabel("[мс]")
         plt.grid(b=True, which='major', axis='both')
         self.ax.set_ylim(0, 4100)
-
         self.buffer_size = 15000
         self.show_on_plot = 2000
         self.buffer_x_com = []
         self.buffer_y_com = []
         self.buffer_x_obj = []
         self.buffer_y_obj = []
-
         self.canvas.get_tk_widget().pack(side='top', fill='both', expand=True)
         self.ani = FuncAnimation(self.fig, self.animate, interval=17, blit=False)
         # COMbobox, button and label
@@ -56,13 +59,29 @@ class MainWindow(tk.Frame):
         self.COMbobox['state'] = 'readonly'
         self.COMbobox.set('COM13')
         self.COMbobox.pack(side='left')
-        self.button_connect = tk.Button(self.frame1, text="Подключиться", command=self.button_press)
+        self.button_connect = tk.Button(self.frame1, text="Подключиться", command=self.button_press, width=25)
         self.button_connect.pack(side='left', padx=(20, 10))
+        # hertz
+        self.hertz_label = tk.Label(self.frame1, text='Частота [Гц]: ')
+        self.hertz_label.pack(side='left', padx=10)
+        self.hertz_var = tk.StringVar()
+        self.hertz_var.set('1')
+        self.hertz_var.trace("w", lambda name, index, mode, hertz_var=self.hertz_var: self.hertz_callback(hertz_var))
+        self.hertz_entry = tk.Entry(self.frame1, text='1', textvariable=self.hertz_var)
+        self.hertz_entry.pack(side='left',padx=(0,15))
+        #labelstatus
         self.label_status = tk.Label(self.frame1, text="Не подключено")
         self.label_status.pack(side='left', padx=5, fill='x')
-        # other
-        self.reader_process = None
-        self.start_process_thread = None
+
+    def hertz_callback(self, hertz_var):
+        global hertz
+        d = re.match("(\d+(\.)?(\d+)?)", hertz_var.get())
+        if d is not None:
+            hertz_var.set(d.group(1))
+            hertz.value = float(d.group(1))
+        else:
+            hertz_var.set('')
+            hertz.value = 0
 
     def button_press(self):
         if self.button_connect["text"] == "Подключиться":
@@ -71,11 +90,10 @@ class MainWindow(tk.Frame):
             self.disconnect()
 
     def animate(self, i):
-        global main_queue
-        while main_queue.qsize():
+        while self.main_queue.qsize():
             try:
-                # конечно слоу это весьма
-                buf = main_queue.get()
+                # ахтунг! спагетти код
+                buf = self.main_queue.get()
                 self.buffer_x_com.append(buf["Time COM"])
                 self.buffer_y_com.append(buf["COM"])
                 self.buffer_x_obj.append(buf["Time OBJ"])
@@ -98,12 +116,11 @@ class MainWindow(tk.Frame):
                 print("empty que =(")
 
     def check_msg(self):
-        if msg_queue.empty() is False:
-            print("cheching msg {}".format(msg_queue.get()))
+        if self.msg_queue.empty() is False:
+            print("cheching msg {}".format(self.msg_queue.get()))
         self.after(75, self.check_msg)
 
     def connect(self):
-        global connected_flag, stop_flag, told, k, msg_queue, lock
         p = re.search("COM[0-9]+", self.COMbobox.get())
         if p:
             self.buffer_x_com = []
@@ -112,24 +129,24 @@ class MainWindow(tk.Frame):
             self.buffer_y_obj = []
             com_port = p[0]
             self.label_status.configure(text='Подключение...')
-            lock.acquire()
+            self.lock.acquire()
             stop_flag.value = 0
             self.start_process_thread = threading.Thread(target=self.start_process, args=(com_port,), daemon=True)
             self.start_process_thread.start()
             # k = 0
             # told = time.time()
-            connected_flag.value = 1
-            lock.release()
+            self.connected_flag.value = 1
+            self.lock.release()
             i = 0
-            while msg_queue.empty():
+            while self.msg_queue.empty():
                 pass
                 i += 1
                 if i == 1000000:
                     self.label_status.configure(text="Queue timeout error")
                     print("Queue timeout error")
                     self.disconnect()
-            if msg_queue.empty() is False:
-                msg = msg_queue.get()
+            if self.msg_queue.empty() is False:
+                msg = self.msg_queue.get()
                 print("message in connect: {}".format(msg))
                 if msg == serial.SerialException:
                     self.label_status.configure(text=msg)
@@ -139,22 +156,20 @@ class MainWindow(tk.Frame):
                     self.button_connect.configure(text="Отключиться")
 
     def start_process(self, com_port):
-        global stop_flag, connected_flag, lock, main_queue, msg_queue
         print("thread started")
         self.reader_process = multiprocessing.Process(target=read_process, args=(
-            stop_flag, connected_flag, com_port, lock, main_queue, msg_queue), daemon=True)
+            self.stop_flag, self.connected_flag, com_port, self.lock, self.main_queue, self.msg_queue, self.hertz), daemon=True)
         self.reader_process.start()
         self.reader_process.join()
         print("thread ended")
 
     def disconnect(self):
-        global stop_flag, connected_flag, lock
         try:
             if self.start_process_thread is not None:
-                lock.acquire()
-                connected_flag.value = 0
-                stop_flag.value = 1
-                lock.release()
+                self.lock.acquire()
+                self.connected_flag.value = 0
+                self.stop_flag.value = 1
+                self.lock.release()
                 self.label_status.configure(text='Закрытие порта...')
                 self.reader_process.join()
                 while self.start_process_thread.is_alive():
@@ -172,7 +187,7 @@ class MainWindow(tk.Frame):
         root.destroy()
 
 
-def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue):
+def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, hertz):
     ser = serial.Serial()
     told = time.perf_counter()
     k = 0
@@ -191,6 +206,7 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue):
                 lock.acquire()
                 stop = stop_flag.value
                 connected = connected_flag.value
+                Hz = hertz.value
                 lock.release()
                 if stop:
                     print("stopping process")
@@ -212,11 +228,11 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue):
                     tnew = time.perf_counter()
                     dt = tnew - told
                     told = tnew
-                    k = k + dt * float(1)  # цифра это герцы
+                    k = k + dt * float(Hz)  # цифра это герцы
                     sinwave = math.sin(2 * math.pi * k)
                     sinwave += 1
-                    leftLim = 0x100
-                    rightLim = 0xEFF
+                    leftLim = 0x200
+                    rightLim = 0xDFF
                     sinwave = (sinwave * (rightLim - leftLim)) / 2 + leftLim
                     ser.write(str(int(sinwave)).encode().zfill(4))
     except serial.SerialException as e:
@@ -230,9 +246,10 @@ if __name__ == "__main__":
     msg_queue = multiprocessing.SimpleQueue()
     stop_flag = multiprocessing.Value("i", 0)
     connected_flag = multiprocessing.Value("i", 0)
+    hertz = multiprocessing.Value("f",1)
     lock = multiprocessing.Lock()
     root = tk.Tk()
-    MainWindow = MainWindow(root)
+    MainWindow = MainWindow(root, connected_flag, stop_flag, msg_queue, main_queue, lock, hertz)
     MainWindow.pack(side="top", fill="both", expand=True)
     root.wm_protocol("WM_DELETE_WINDOW", MainWindow.on_closing)
     root.mainloop()

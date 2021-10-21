@@ -144,6 +144,7 @@ def sinhertzcallback(sinhertz):
         hertz = d.group(1)
     else:
         hertz = 0
+        sinhertz.set('')
 
 
 def sincheckboxChecked():
