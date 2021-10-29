@@ -54,18 +54,25 @@ ri = 0
 def readthread():
     global ri
     with open("Data_{}.csv".format(datetime.datetime.now().strftime("%Y_%m_%d-%H%M%S")), 'w', newline='') as csv_file:
-        csv_writer = csv.DictWriter(csv_file, fieldnames=["Time COM", "Time OBJ", "COM", "OBJ"])
+        csv_writer = csv.DictWriter(csv_file, fieldnames=["Time COM", "Time OBJ", "COM", "OBJ", "Duty", "Dir"])
         csv_writer.writeheader()
+        first_time = True
         while True:
             if stopflag:
                 break
             if connected:
                 try:
-                    line = ser.read(size=20)
-                    csv_writer.writerow({'Time COM': int.from_bytes(line[4:12], "little"),
-                                         'Time OBJ': int.from_bytes(line[12:20], "little"),
-                                         'COM': int.from_bytes(line[2:4], "little"),
-                                         'OBJ': int.from_bytes(line[0:2], "little")})
+                    line = ser.read(size=28)
+                    if first_time:
+                        initial_com_time = float(int.from_bytes(line[4:12], "little")) / 80000
+                        initial_obj_time = float(int.from_bytes(line[12:20], "little")) / 80000
+                        first_time = False
+                    csv_writer.writerow({'Time COM': float(int.from_bytes(line[4:12], "little")) / 80000 - initial_com_time,
+                               'Time OBJ': float(int.from_bytes(line[12:20], "little")) / 80000 - initial_obj_time,
+                               'COM': int.from_bytes(line[2:4], "little"),
+                               'OBJ': int.from_bytes(line[0:2], "little"),
+                               'Duty': int.from_bytes(line[20:24], "little"),
+                               'Dir': int.from_bytes(line[24:28], "little") * 100})
 
                     ri += 1
                     if ri > 20:  # временный хак

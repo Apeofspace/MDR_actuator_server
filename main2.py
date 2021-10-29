@@ -37,6 +37,8 @@ class MainWindow(tk.Frame):
         self.ax2 = self.ax.twinx()
         self.line_duty, = self.ax2.plot(self.x, 2000 * np.sin(self.x) + np.pi, label='Коэффициент заполнения',
                                         color='green', linewidth=0.5)
+        self.line_dir, = self.ax2.plot(self.x, 2000 * np.sin(self.x) + np.pi, label='Направление',
+                                        color='red', linewidth=0.5)
         # , linewidth = 0.5, marker = "o", markersize = 0.5
         self.line1, = self.ax.plot(self.x, 2000 * np.sin(self.x), label='Управляющий сигнал')
         self.line2, = self.ax.plot(self.x, 2000 * np.sin(self.x) + np.pi, label='Значение с потенциометра')
@@ -50,6 +52,7 @@ class MainWindow(tk.Frame):
         self.buffer_x_obj = []
         self.buffer_y_obj = []
         self.buffer_duty = []
+        self.buffer_dir = []
         self.canvas.get_tk_widget().pack(side='top', fill='both', expand=True)
         self.ani = FuncAnimation(self.fig, self.animate, interval=16, blit=False)
         plt.xlabel("[мс]")
@@ -104,13 +107,15 @@ class MainWindow(tk.Frame):
                 self.buffer_y_com.append(buf["COM"])
                 self.buffer_x_obj.append(buf["Time OBJ"])
                 self.buffer_y_obj.append(buf["OBJ"])
-                self.buffer_duty.append(399 - buf["Duty"])
+                self.buffer_duty.append(buf["Duty"])
+                self.buffer_dir.append(buf["Dir"])
                 if len(self.buffer_x_com) > self.buffer_size:
                     self.buffer_x_com.pop(0)
                     self.buffer_y_com.pop(0)
                     self.buffer_x_obj.pop(0)
                     self.buffer_y_obj.pop(0)
                     self.buffer_duty.pop(0)
+                    self.buffer_dir.pop(0)
                 if len(self.buffer_x_com) > self.show_on_plot:
                     self.ax.set_xlim(self.buffer_x_com[-self.show_on_plot], self.buffer_x_com[-1])
                 elif len(self.buffer_x_com) > 1:
@@ -118,6 +123,7 @@ class MainWindow(tk.Frame):
                 self.line1.set_data(self.buffer_x_com, self.buffer_y_com)
                 self.line2.set_data(self.buffer_x_obj, self.buffer_y_obj)
                 self.line_duty.set_data(self.buffer_x_com, self.buffer_duty)
+                self.line_dir.set_data(self.buffer_x_com, self.buffer_dir)
             except Empty:
                 print("empty que =(")
 
@@ -134,6 +140,7 @@ class MainWindow(tk.Frame):
             self.buffer_x_obj = []
             self.buffer_y_obj = []
             self.buffer_duty = []
+            self.buffer_dir = []
             com_port = p[0]
             self.label_status.configure(text='Подключение...')
             self.lock.acquire()
@@ -200,7 +207,7 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
     told = time.perf_counter()
     k = 0
     first_time = True
-
+    sinwave = 0
     try:
         ser.baudrate = 115200
         ser.port = com_port
@@ -208,7 +215,7 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
         msg_queue.put(ser.portstr)
         with open("Data_{}.csv".format(datetime.datetime.now().strftime("%Y_%m_%d-%H%M%S")), 'w',
                   newline='') as csv_file:
-            csv_writer = csv.DictWriter(csv_file, fieldnames=["Time COM", "Time OBJ", "COM", "OBJ", "Duty"])
+            csv_writer = csv.DictWriter(csv_file, fieldnames=["Time COM", "Time OBJ", "COM", "OBJ", "Duty", "Dir"])
             csv_writer.writeheader()
             while True:
                 lock.acquire()
@@ -222,7 +229,7 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
                     print("serial closed")
                     break
                 if connected:
-                    line = ser.read(size=24)
+                    line = ser.read(size=28)
                     if first_time:
                         initial_com_time = float(int.from_bytes(line[4:12], "little")) / 80000
                         initial_obj_time = float(int.from_bytes(line[12:20], "little")) / 80000
@@ -231,11 +238,13 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
                                'Time OBJ': float(int.from_bytes(line[12:20], "little")) / 80000 - initial_obj_time,
                                'COM': int.from_bytes(line[2:4], "little"),
                                'OBJ': int.from_bytes(line[0:2], "little"),
-                               'Duty': int.from_bytes(line[20:24], "little")}
+                               'Duty': int.from_bytes(line[20:24], "little"),
+                               'Dir': int.from_bytes(line[24:28], "little") * 100}
                     csv_writer.writerow(decoded)
                     queue.put(decoded)
                     tnew = time.perf_counter()
                     dt = tnew - told
+                    #синусоида
                     told = tnew
                     k = k + dt * float(Hz)  # цифра это герцы
                     sinwave = math.sin(2 * math.pi * k)
@@ -244,6 +253,15 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
                     rightLim = 0xFFF - leftLim
                     sinwave = (sinwave * (rightLim - leftLim)) / 2 + leftLim
                     ser.write(str(int(sinwave)).encode().zfill(4))
+
+                    #миандр
+                    # if dt>1/Hz:
+                    #     told = tnew
+                    #     if sinwave == 3500:
+                    #         sinwave = 1000
+                    #     else:
+                    #         sinwave = 3500
+                    #     ser.write(str(int(sinwave)).encode().zfill(4))
     except serial.SerialException as e:
         ser.close()
         msg_queue.put(e)
