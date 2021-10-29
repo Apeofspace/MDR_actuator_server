@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import os
 import re
 
-xcom, ycom, xobj, yobj = [], [], [], []
+xcom, ycom, xobj, yobj, duty = [], [], [], [], []
 try:
     arg = sys.argv[1]
 except Exception:
@@ -32,16 +32,21 @@ try:
             if i == 0:
                 initial_com_time = float(row['Time COM']) / 80000
                 initial_obj_time = float(row['Time OBJ']) / 80000
-            if row != {'Time COM': '0', 'Time OBJ': '0', 'COM': '0', 'OBJ': '0'}:
+            if row != {'Time COM': '0', 'Time OBJ': '0', 'COM': '0', 'OBJ': '0', 'Duty': '0'}:
                 xcom.append(float(row['Time COM']) / 80000 - initial_com_time)
                 ycom.append(int(row['COM']))
                 xobj.append(float(row['Time OBJ']) / 80000 - initial_obj_time)
                 yobj.append(int(row['OBJ']))
+                duty.append(399- int(row['Duty']))
                 i += 1
 
     fig, ax = plt.subplots(tight_layout=True)
+    ax2 = ax.twinx()
+    ax.set_ylim(0, 4100)
+    ax2.set_ylim(0, 400)
     line1, = ax.plot(xcom, ycom, label='Управляющий сигнал')
     line2, = ax.plot(xobj, yobj, label='Значение с потенциометра')
+    line3, = ax2.plot(xcom, duty,  label='Коэффициент заполнения', color = 'green', linewidth = 0.5)
     fig.canvas.manager.set_window_title(arg)
     plt.xlabel("[мс]")
     plt.grid(b=True, which='major', axis='both')

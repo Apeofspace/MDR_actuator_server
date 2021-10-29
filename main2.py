@@ -34,24 +34,30 @@ class MainWindow(tk.Frame):
         self.toolbar.update()
         self.toolbar.pack(side='top')
         self.x = np.arange(0, 2 * np.pi, 0.01)
-        self.line1, = self.ax.plot(self.x, 2000*np.sin(self.x), label='Управляющий сигнал')
-        self.line2, = self.ax.plot(self.x, 2000*np.sin(self.x) + np.pi, label='Значение с потенциометра')
+        self.ax2 = self.ax.twinx()
+        self.line_duty, = self.ax2.plot(self.x, 2000 * np.sin(self.x) + np.pi, label='Коэффициент заполнения',
+                                        color='green', linewidth=0.5)
+        # , linewidth = 0.5, marker = "o", markersize = 0.5
+        self.line1, = self.ax.plot(self.x, 2000 * np.sin(self.x), label='Управляющий сигнал')
+        self.line2, = self.ax.plot(self.x, 2000 * np.sin(self.x) + np.pi, label='Значение с потенциометра')
         self.fig.legend()
-        plt.xlabel("[мс]")
-        plt.grid(b=True, which='major', axis='both')
         self.ax.set_ylim(0, 4100)
+        self.ax2.set_ylim(0, 400)
         self.buffer_size = 15000
         self.show_on_plot = 2000
         self.buffer_x_com = []
         self.buffer_y_com = []
         self.buffer_x_obj = []
         self.buffer_y_obj = []
+        self.buffer_duty = []
         self.canvas.get_tk_widget().pack(side='top', fill='both', expand=True)
-        self.ani = FuncAnimation(self.fig, self.animate, interval=17, blit=False)
+        self.ani = FuncAnimation(self.fig, self.animate, interval=16, blit=False)
+        plt.xlabel("[мс]")
+        plt.grid(b=True, which='major', axis='both')
         # COMbobox, button and label
         self.frame1 = tk.Frame(root)
         self.frame1.pack(side='bottom', padx=10, pady=10, fill='x')
-        self.label_com = tk.Label(self.frame1, text='COM ')
+        self.label_com = tk.Label(self.frame1, text='Порт ')
         self.label_com.pack(side='left', padx=10)
         self.COMboboxvar = tk.StringVar()
         self.COMbobox = tk.ttk.Combobox(self.frame1, textvariable=self.COMboboxvar)
@@ -68,8 +74,8 @@ class MainWindow(tk.Frame):
         self.hertz_var.set('1')
         self.hertz_var.trace("w", lambda name, index, mode, hertz_var=self.hertz_var: self.hertz_callback(hertz_var))
         self.hertz_entry = tk.Entry(self.frame1, text='1', textvariable=self.hertz_var)
-        self.hertz_entry.pack(side='left',padx=(0,15))
-        #labelstatus
+        self.hertz_entry.pack(side='left', padx=(0, 15))
+        # labelstatus
         self.label_status = tk.Label(self.frame1, text="Не подключено")
         self.label_status.pack(side='left', padx=5, fill='x')
 
@@ -98,20 +104,20 @@ class MainWindow(tk.Frame):
                 self.buffer_y_com.append(buf["COM"])
                 self.buffer_x_obj.append(buf["Time OBJ"])
                 self.buffer_y_obj.append(buf["OBJ"])
+                self.buffer_duty.append(399 - buf["Duty"])
                 if len(self.buffer_x_com) > self.buffer_size:
                     self.buffer_x_com.pop(0)
                     self.buffer_y_com.pop(0)
                     self.buffer_x_obj.pop(0)
                     self.buffer_y_obj.pop(0)
+                    self.buffer_duty.pop(0)
                 if len(self.buffer_x_com) > self.show_on_plot:
                     self.ax.set_xlim(self.buffer_x_com[-self.show_on_plot], self.buffer_x_com[-1])
-                    self.line1.set_data(self.buffer_x_com, self.buffer_y_com)
-                    self.line2.set_data(self.buffer_x_obj, self.buffer_y_obj)
                 elif len(self.buffer_x_com) > 1:
                     self.ax.set_xlim(self.buffer_x_com[0], self.buffer_x_com[-1])
-                    # self.ax.set_xlim(min(self.buffer_x_com), max(self.buffer_x_com))
-                    self.line1.set_data(self.buffer_x_com, self.buffer_y_com)
-                    self.line2.set_data(self.buffer_x_obj, self.buffer_y_obj)
+                self.line1.set_data(self.buffer_x_com, self.buffer_y_com)
+                self.line2.set_data(self.buffer_x_obj, self.buffer_y_obj)
+                self.line_duty.set_data(self.buffer_x_com, self.buffer_duty)
             except Empty:
                 print("empty que =(")
 
@@ -127,6 +133,7 @@ class MainWindow(tk.Frame):
             self.buffer_y_com = []
             self.buffer_x_obj = []
             self.buffer_y_obj = []
+            self.buffer_duty = []
             com_port = p[0]
             self.label_status.configure(text='Подключение...')
             self.lock.acquire()
@@ -158,7 +165,8 @@ class MainWindow(tk.Frame):
     def start_process(self, com_port):
         print("thread started")
         self.reader_process = multiprocessing.Process(target=read_process, args=(
-            self.stop_flag, self.connected_flag, com_port, self.lock, self.main_queue, self.msg_queue, self.hertz), daemon=True)
+            self.stop_flag, self.connected_flag, com_port, self.lock, self.main_queue, self.msg_queue, self.hertz),
+                                                      daemon=True)
         self.reader_process.start()
         self.reader_process.join()
         print("thread ended")
@@ -200,7 +208,7 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
         msg_queue.put(ser.portstr)
         with open("Data_{}.csv".format(datetime.datetime.now().strftime("%Y_%m_%d-%H%M%S")), 'w',
                   newline='') as csv_file:
-            csv_writer = csv.DictWriter(csv_file, fieldnames=["Time COM", "Time OBJ", "COM", "OBJ"])
+            csv_writer = csv.DictWriter(csv_file, fieldnames=["Time COM", "Time OBJ", "COM", "OBJ", "Duty"])
             csv_writer.writeheader()
             while True:
                 lock.acquire()
@@ -214,7 +222,7 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
                     print("serial closed")
                     break
                 if connected:
-                    line = ser.read(size=20)
+                    line = ser.read(size=24)
                     if first_time:
                         initial_com_time = float(int.from_bytes(line[4:12], "little")) / 80000
                         initial_obj_time = float(int.from_bytes(line[12:20], "little")) / 80000
@@ -222,7 +230,8 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
                     decoded = {'Time COM': float(int.from_bytes(line[4:12], "little")) / 80000 - initial_com_time,
                                'Time OBJ': float(int.from_bytes(line[12:20], "little")) / 80000 - initial_obj_time,
                                'COM': int.from_bytes(line[2:4], "little"),
-                               'OBJ': int.from_bytes(line[0:2], "little")}
+                               'OBJ': int.from_bytes(line[0:2], "little"),
+                               'Duty': int.from_bytes(line[20:24], "little")}
                     csv_writer.writerow(decoded)
                     queue.put(decoded)
                     tnew = time.perf_counter()
@@ -232,7 +241,7 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
                     sinwave = math.sin(2 * math.pi * k)
                     sinwave += 1
                     leftLim = 0x200
-                    rightLim = 0xDFF
+                    rightLim = 0xFFF - leftLim
                     sinwave = (sinwave * (rightLim - leftLim)) / 2 + leftLim
                     ser.write(str(int(sinwave)).encode().zfill(4))
     except serial.SerialException as e:
@@ -246,9 +255,10 @@ if __name__ == "__main__":
     msg_queue = multiprocessing.SimpleQueue()
     stop_flag = multiprocessing.Value("i", 0)
     connected_flag = multiprocessing.Value("i", 0)
-    hertz = multiprocessing.Value("f",1)
+    hertz = multiprocessing.Value("f", 1)
     lock = multiprocessing.Lock()
     root = tk.Tk()
+    root.title("Sin Animation")
     MainWindow = MainWindow(root, connected_flag, stop_flag, msg_queue, main_queue, lock, hertz)
     MainWindow.pack(side="top", fill="both", expand=True)
     root.wm_protocol("WM_DELETE_WINDOW", MainWindow.on_closing)

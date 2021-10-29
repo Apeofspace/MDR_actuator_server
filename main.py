@@ -69,7 +69,7 @@ def readthread():
 
                     ri += 1
                     if ri > 20:  # временный хак
-                        scaleread.set(int.from_bytes(line[2:4], "little"))
+                        scaleread.set(int.from_bytes(line[0:2], "little"))
                         ri = 0
                 except serial.SerialException:
                     disconnect()
