@@ -34,7 +34,9 @@ class MainWindow(tk.Frame):
         self.toolbar.update()
         self.toolbar.pack(side='top')
         self.x = np.arange(0, 2 * np.pi, 0.01)
+        plt.grid(b=True, which='major', axis='both')
         self.ax2 = self.ax.twinx()
+        self.ax2.format_coord = self.make_format(self.ax, self.ax2)
         self.line_duty, = self.ax2.plot(self.x, 2000 * np.sin(self.x) + np.pi, label='Коэффициент заполнения',
                                         color='green', linewidth=0.5)
         self.line_dir, = self.ax2.plot(self.x, 2000 * np.sin(self.x) + np.pi, label='Направление',
@@ -44,7 +46,7 @@ class MainWindow(tk.Frame):
         self.line2, = self.ax.plot(self.x, 2000 * np.sin(self.x) + np.pi, label='Значение с потенциометра')
         self.fig.legend()
         self.ax.set_ylim(0, 4100)
-        self.ax2.set_ylim(0, 400)
+        self.ax2.set_ylim(0, 4100)
         self.buffer_size = 15000
         self.show_on_plot = 2000
         self.buffer_x_com = []
@@ -56,7 +58,7 @@ class MainWindow(tk.Frame):
         self.canvas.get_tk_widget().pack(side='top', fill='both', expand=True)
         self.ani = FuncAnimation(self.fig, self.animate, interval=16, blit=False)
         plt.xlabel("[мс]")
-        plt.grid(b=True, which='major', axis='both')
+        # plt.grid(b=True, which='major', axis='both')
         # COMbobox, button and label
         self.frame1 = tk.Frame(root)
         self.frame1.pack(side='bottom', padx=10, pady=10, fill='x')
@@ -91,6 +93,18 @@ class MainWindow(tk.Frame):
         else:
             hertz_var.set('')
             hertz.value = 0
+
+    def make_format(self, other, current):
+        # current and other are axes
+        def format_coord(x, y):
+            # x, y are data coordinates
+            # convert to display coords
+            display_coord = current.transData.transform((x, y))
+            inv = other.transData.inverted()
+            # convert back to data coords with respect to ax
+            ax_coord = inv.transform(display_coord)
+            return("Координата: {:.0f},   коэф. заполнения: {:.0f},   время: {:.2f}".format(ax_coord[1], y, x))
+        return format_coord
 
     def button_press(self):
         if self.button_connect["text"] == "Подключиться":
