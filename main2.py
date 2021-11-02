@@ -17,7 +17,7 @@ from queue import Empty, Full
 
 
 class MainWindow(tk.Frame):
-    def __init__(self, parent, connected_flag, stop_flag, msg_queue, main_queue, lock, hertz, *args, **kwargs):
+    def __init__(self, parent, connected_flag, stop_flag, msg_queue, main_queue, lock, hertz, mode, *args, **kwargs):
         tk.Frame.__init__(self, parent, *args, **kwargs)
         self.connected_flag = connected_flag
         self.stop_flag = stop_flag
@@ -27,6 +27,7 @@ class MainWindow(tk.Frame):
         self.hertz = hertz
         self.reader_process = None
         self.start_process_thread = None
+        self.mode = mode
         # PLOT
         self.fig, self.ax = plt.subplots(figsize=(10, 5), tight_layout=True)
         self.canvas = FigureCanvasTkAgg(self.fig, master=self)
@@ -40,7 +41,7 @@ class MainWindow(tk.Frame):
         self.line_duty, = self.ax2.plot(self.x, 2000 * np.sin(self.x) + np.pi, label='Коэффициент заполнения',
                                         color='green', linewidth=0.5)
         self.line_dir, = self.ax2.plot(self.x, 2000 * np.sin(self.x) + np.pi, label='Направление',
-                                        color='red', linewidth=0.5)
+                                       color='red', linewidth=0.5)
         # , linewidth = 0.5, marker = "o", markersize = 0.5
         self.line1, = self.ax.plot(self.x, 2000 * np.sin(self.x), label='Управляющий сигнал')
         self.line2, = self.ax.plot(self.x, 2000 * np.sin(self.x) + np.pi, label='Значение с потенциометра')
@@ -80,9 +81,21 @@ class MainWindow(tk.Frame):
         self.hertz_var.trace("w", lambda name, index, mode, hertz_var=self.hertz_var: self.hertz_callback(hertz_var))
         self.hertz_entry = tk.Entry(self.frame1, text='1', textvariable=self.hertz_var)
         self.hertz_entry.pack(side='left', padx=(0, 15))
+        # mode combobox
+        self.mode_combobox_var = tk.StringVar()
+        self.mode_combobox = tk.ttk.Combobox(self.frame1, textvariable=self.mode_combobox_var)
+        self.mode_combobox['values'] = ["Синусоида", "Меандр"]
+        self.mode_combobox['state'] = 'readonly'
+        self.mode_combobox.current(newindex=0)
+        self.mode_combobox.bind('<<ComboboxSelected>>', lambda func: self.mode_combobox_modified())
+        self.mode_combobox.pack(side='left')
         # labelstatus
         self.label_status = tk.Label(self.frame1, text="Не подключено")
         self.label_status.pack(side='left', padx=5, fill='x')
+
+    def mode_combobox_modified(self):
+        self.mode.value = self.mode_combobox.current()
+        # print(self.mode.value)
 
     def hertz_callback(self, hertz_var):
         global hertz
@@ -103,7 +116,8 @@ class MainWindow(tk.Frame):
             inv = other.transData.inverted()
             # convert back to data coords with respect to ax
             ax_coord = inv.transform(display_coord)
-            return("Координата: {:.0f},   коэф. заполнения: {:.0f},   время: {:.2f}".format(ax_coord[1], y, x))
+            return ("Координата: {:.0f},   коэф. заполнения: {:.0f},   время: {:.2f}".format(ax_coord[1], y, x))
+
         return format_coord
 
     def button_press(self):
@@ -186,7 +200,8 @@ class MainWindow(tk.Frame):
     def start_process(self, com_port):
         print("thread started")
         self.reader_process = multiprocessing.Process(target=read_process, args=(
-            self.stop_flag, self.connected_flag, com_port, self.lock, self.main_queue, self.msg_queue, self.hertz),
+            self.stop_flag, self.connected_flag, com_port, self.lock, self.main_queue, self.msg_queue, self.hertz,
+            self.mode),
                                                       daemon=True)
         self.reader_process.start()
         self.reader_process.join()
@@ -216,12 +231,12 @@ class MainWindow(tk.Frame):
         root.destroy()
 
 
-def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, hertz):
+def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, hertz, mode):
     ser = serial.Serial()
     told = time.perf_counter()
     k = 0
     first_time = True
-    sinwave = 0
+    signal = 0
     try:
         ser.baudrate = 115200
         ser.port = com_port
@@ -256,26 +271,28 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
                                'Dir': int.from_bytes(line[24:28], "little") * 100}
                     csv_writer.writerow(decoded)
                     queue.put(decoded)
-                    tnew = time.perf_counter()
-                    dt = tnew - told
-                    #синусоида
-                    told = tnew
-                    k = k + dt * float(Hz)  # цифра это герцы
-                    sinwave = math.sin(2 * math.pi * k)
-                    sinwave += 1
-                    leftLim = 0x200
-                    rightLim = 0xFFF - leftLim
-                    sinwave = (sinwave * (rightLim - leftLim)) / 2 + leftLim
-                    ser.write(str(int(sinwave)).encode().zfill(4))
-
-                    #миандр
-                    # if dt>1/Hz:
-                    #     told = tnew
-                    #     if sinwave == 3500:
-                    #         sinwave = 1000
-                    #     else:
-                    #         sinwave = 3500
-                    #     ser.write(str(int(sinwave)).encode().zfill(4))
+                    t_new = time.perf_counter()
+                    dt = t_new - told
+                    left_lim = 0x200
+                    right_lim = 0xFFF - left_lim
+                    if mode.value == 0:
+                        # синусоида
+                        told = t_new
+                        k = k + dt * float(Hz)  # цифра это герцы
+                        signal = math.sin(2 * math.pi * k)
+                        signal += 1
+                        signal = (signal * (right_lim - left_lim)) / 2 + left_lim
+                        ser.write(str(int(signal)).encode().zfill(4))
+                    elif mode.value == 1:
+                        # меандр
+                        if not (Hz == 0):
+                            if dt > 1 / Hz:
+                                told = t_new
+                                if signal == right_lim:
+                                    signal = left_lim
+                                else:
+                                    signal = right_lim
+                                ser.write(str(int(signal)).encode().zfill(4))
     except serial.SerialException as e:
         ser.close()
         msg_queue.put(e)
@@ -288,10 +305,11 @@ if __name__ == "__main__":
     stop_flag = multiprocessing.Value("i", 0)
     connected_flag = multiprocessing.Value("i", 0)
     hertz = multiprocessing.Value("f", 1)
+    mode = multiprocessing.Value("i", 0)
     lock = multiprocessing.Lock()
     root = tk.Tk()
     root.title("Sin Animation")
-    MainWindow = MainWindow(root, connected_flag, stop_flag, msg_queue, main_queue, lock, hertz)
+    MainWindow = MainWindow(root, connected_flag, stop_flag, msg_queue, main_queue, lock, hertz, mode)
     MainWindow.pack(side="top", fill="both", expand=True)
     root.wm_protocol("WM_DELETE_WINDOW", MainWindow.on_closing)
     root.mainloop()
