@@ -145,11 +145,12 @@ class MainWindow(tk.Frame):
                 print("empty que =(")
 
     def check_msg(self):
-        if self.msg_queue.empty() is False:
-            msg = self.msg_queue.get()
-            if isinstance(msg, Exception):
-                self.disconnect()
-        self.after(250, self.check_msg)
+        if self.stop_flag.value == 0:
+            if self.msg_queue.empty() is False:
+                msg = self.msg_queue.get()
+                if isinstance(msg, Exception):
+                    self.disconnect()
+            self.after(250, self.check_msg)
 
     def connect(self):
         p = re.search("COM[0-9]+", self.COMbobox.get())
@@ -165,7 +166,6 @@ class MainWindow(tk.Frame):
                 self.stop_flag, self.connected_flag, com_port, self.lock, self.main_queue, self.msg_queue, self.hertz,
                 self.mode), daemon=True)
             self.reader_process.start()
-            self.check_msg()
             self.connected_flag.value = 1
             self.lock.release()
             i = 0
@@ -185,6 +185,8 @@ class MainWindow(tk.Frame):
                 else:
                     self.label_status.configure(text=f'Подключено к {msg}')
                     self.button_connect.configure(text="Отключиться")
+                    self.check_msg()
+
 
     def disconnect(self):
         try:
