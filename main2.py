@@ -49,12 +49,13 @@ class MainWindow(tk.Frame):
         self.ax2.set_ylim(0, 4100)
         self.buffer_size = 15000
         self.show_on_plot = 2000
-        self.buffer_x_com = []
-        self.buffer_y_com = []
-        self.buffer_x_obj = []
-        self.buffer_y_obj = []
-        self.buffer_duty = []
-        self.buffer_dir = []
+        self.buffers = {name: [] for name in
+                        ['Time COM',
+                         'COM',
+                         'Time OBJ',
+                         'OBJ',
+                         'Duty',
+                         'Dir']}
         self.canvas.get_tk_widget().pack(side='top', fill='both', expand=True)
         self.ani = FuncAnimation(self.fig, self.animate, interval=16, blit=False)
         plt.xlabel("[мс]")
@@ -116,6 +117,7 @@ class MainWindow(tk.Frame):
             # convert back to data coords with respect to ax
             ax_coord = inv.transform(display_coord)
             return ("Координата: {:.0f},   коэф. заполнения: {:.0f},   время: {:.2f}".format(ax_coord[1], y, x))
+
         return format_coord
 
     def button_press(self):
@@ -127,29 +129,20 @@ class MainWindow(tk.Frame):
     def animate(self, i):
         while self.main_queue.qsize():
             try:
-                # ахтунг! спагетти код
                 buf = self.main_queue.get()
-                self.buffer_x_com.append(buf["Time COM"])
-                self.buffer_y_com.append(buf["COM"])
-                self.buffer_x_obj.append(buf["Time OBJ"])
-                self.buffer_y_obj.append(buf["OBJ"])
-                self.buffer_duty.append(buf["Duty"])
-                self.buffer_dir.append(buf["Dir"])
-                if len(self.buffer_x_com) > self.buffer_size:
-                    self.buffer_x_com.pop(0)
-                    self.buffer_y_com.pop(0)
-                    self.buffer_x_obj.pop(0)
-                    self.buffer_y_obj.pop(0)
-                    self.buffer_duty.pop(0)
-                    self.buffer_dir.pop(0)
-                if len(self.buffer_x_com) > self.show_on_plot:
-                    self.ax.set_xlim(self.buffer_x_com[-self.show_on_plot], self.buffer_x_com[-1])
-                elif len(self.buffer_x_com) > 1:
-                    self.ax.set_xlim(self.buffer_x_com[0], self.buffer_x_com[-1])
-                self.line1.set_data(self.buffer_x_com, self.buffer_y_com)
-                self.line2.set_data(self.buffer_x_obj, self.buffer_y_obj)
-                self.line_duty.set_data(self.buffer_x_com, self.buffer_duty)
-                self.line_dir.set_data(self.buffer_x_com, self.buffer_dir)
+                for key in self.buffers.keys():
+                    self.buffers[key].append(buf[key])
+                if len(self.buffers["Time COM"]) > self.buffer_size:
+                    for value in self.buffers.values():
+                        value.pop()
+                if len(self.buffers["Time COM"]) > self.show_on_plot:
+                    self.ax.set_xlim(self.buffers["Time COM"][-self.show_on_plot], self.buffers["Time COM"][-1])
+                elif len(self.buffers["Time COM"]) > 1:
+                    self.ax.set_xlim(self.buffers["Time COM"][0], self.buffers["Time COM"][-1])
+                self.line1.set_data(self.buffers["Time COM"], self.buffers["COM"])
+                self.line2.set_data(self.buffers["Time OBJ"], self.buffers["OBJ"])
+                self.line_duty.set_data(self.buffers["Time COM"], self.buffers["Duty"])
+                self.line_dir.set_data(self.buffers["Time COM"], self.buffers["Dir"])
             except Empty:
                 print("empty que =(")
 
@@ -163,25 +156,18 @@ class MainWindow(tk.Frame):
     def connect(self):
         p = re.search("COM[0-9]+", self.COMbobox.get())
         if p:
-            self.buffer_x_com = []
-            self.buffer_y_com = []
-            self.buffer_x_obj = []
-            self.buffer_y_obj = []
-            self.buffer_duty = []
-            self.buffer_dir = []
+            for key in self.buffers.keys():
+                self.buffers[key] = []
             com_port = p[0]
             self.label_status.configure(text='Подключение...')
             self.lock.acquire()
             stop_flag.value = 0
-            self.processes = []
             print("process starting...")
             self.reader_process = multiprocessing.Process(target=read_process, args=(
                 self.stop_flag, self.connected_flag, com_port, self.lock, self.main_queue, self.msg_queue, self.hertz,
                 self.mode), daemon=True)
             self.reader_process.start()
             self.check_msg()
-            # k = 0
-            # told = time.time()
             self.connected_flag.value = 1
             self.lock.release()
             i = 0
@@ -194,12 +180,12 @@ class MainWindow(tk.Frame):
                     self.disconnect()
             if self.msg_queue.empty() is False:
                 msg = self.msg_queue.get()
-                print("message in connect: {}".format(msg))
+                print(f"Connected to : {msg}")
                 if msg == serial.SerialException:
                     self.label_status.configure(text=msg)
                     self.disconnect()
                 else:
-                    self.label_status.configure(text='Подключено к {}'.format(msg))
+                    self.label_status.configure(text=f'Подключено к {msg}')
                     self.button_connect.configure(text="Отключиться")
 
     def disconnect(self):
@@ -232,6 +218,7 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
     k = 0
     first_time = True
     signal = 0
+    fields = ["Time COM", "Time OBJ", "COM", "OBJ", "Duty", "Dir"]
     try:
         ser.baudrate = 115200
         ser.port = com_port
@@ -239,7 +226,7 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
         msg_queue.put(ser.portstr)
         with open("Data_{}.csv".format(datetime.datetime.now().strftime("%Y_%m_%d-%H%M%S")), 'w',
                   newline='') as csv_file:
-            csv_writer = csv.DictWriter(csv_file, fieldnames=["Time COM", "Time OBJ", "COM", "OBJ", "Duty", "Dir"])
+            csv_writer = csv.DictWriter(csv_file, fieldnames=fields)
             csv_writer.writeheader()
             while True:
                 lock.acquire()
