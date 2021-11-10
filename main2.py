@@ -1,4 +1,3 @@
-import threading
 import multiprocessing
 import tkinter as tk
 from tkinter import ttk
@@ -13,7 +12,7 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import numpy as np
 import math
-from queue import Empty, Full
+from queue import Empty
 
 
 class MainWindow(tk.Frame):
@@ -27,35 +26,34 @@ class MainWindow(tk.Frame):
         self.hertz = hertz
         self.reader_process = None
         self.mode = mode
+        self.buffer_size = 15000
+        self.show_on_plot = 2000
+        fields = ['Time COM',
+                  'COM',
+                  'Time OBJ',
+                  'OBJ',
+                  'Duty',
+                  'Dir']
+        self.buffers = {name: [] for name in fields}
         # PLOT
         self.fig, self.ax = plt.subplots(figsize=(10, 5), tight_layout=True)
         self.canvas = FigureCanvasTkAgg(self.fig, master=self)
         self.toolbar = NavigationToolbar2Tk(self.canvas, self)
         self.toolbar.update()
         self.toolbar.pack(side='top')
-        self.x = np.arange(0, 2 * np.pi, 0.01)
         plt.grid(b=True, which='major', axis='both')
         self.ax2 = self.ax.twinx()
         self.ax2.format_coord = self.make_format(self.ax, self.ax2)
-        self.line_duty, = self.ax2.plot(self.x, 2000 * np.sin(self.x) + np.pi, label='Коэффициент заполнения',
+        self.line_duty, = self.ax2.plot(0, 0, label='Коэффициент заполнения',
                                         color='green', linewidth=0.5)
-        self.line_dir, = self.ax2.plot(self.x, 2000 * np.sin(self.x) + np.pi, label='Направление',
+        self.line_dir, = self.ax2.plot(0, 0, label='Направление',
                                        color='red', linewidth=0.5)
         # , linewidth = 0.5, marker = "o", markersize = 0.5
-        self.line1, = self.ax.plot(self.x, 2000 * np.sin(self.x), label='Управляющий сигнал')
-        self.line2, = self.ax.plot(self.x, 2000 * np.sin(self.x) + np.pi, label='Значение с потенциометра')
+        self.line1, = self.ax.plot(0, 0, label='Управляющий сигнал')
+        self.line2, = self.ax.plot(0, 0, label='Значение с потенциометра')
         self.fig.legend()
         self.ax.set_ylim(0, 4100)
         self.ax2.set_ylim(0, 4100)
-        self.buffer_size = 15000
-        self.show_on_plot = 2000
-        self.buffers = {name: [] for name in
-                        ['Time COM',
-                         'COM',
-                         'Time OBJ',
-                         'OBJ',
-                         'Duty',
-                         'Dir']}
         self.canvas.get_tk_widget().pack(side='top', fill='both', expand=True)
         self.ani = FuncAnimation(self.fig, self.animate, interval=16, blit=False)
         plt.xlabel("[мс]")
