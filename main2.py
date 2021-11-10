@@ -75,9 +75,9 @@ class MainWindow(tk.Frame):
         self.hertz_label = tk.Label(self.frame1, text='Частота [Гц]: ')
         self.hertz_label.pack(side='left', padx=10)
         self.hertz_var = tk.StringVar()
-        self.hertz_var.set('1')
+        self.hertz_var.set(self.hertz.value)
         self.hertz_var.trace("w", lambda name, index, mode, hertz_var=self.hertz_var: self.hertz_callback(hertz_var))
-        self.hertz_entry = tk.Entry(self.frame1, text='1', textvariable=self.hertz_var)
+        self.hertz_entry = tk.Entry(self.frame1, textvariable=self.hertz_var)
         self.hertz_entry.pack(side='left', padx=(0, 15))
         # mode combobox
         self.mode_combobox_var = tk.StringVar()
@@ -132,7 +132,7 @@ class MainWindow(tk.Frame):
                     self.buffers[key].append(buf[key])
                 if len(self.buffers["Time COM"]) > self.buffer_size:
                     for value in self.buffers.values():
-                        value.pop()
+                        value.pop(0)
                 if len(self.buffers["Time COM"]) > self.show_on_plot:
                     self.ax.set_xlim(self.buffers["Time COM"][-self.show_on_plot], self.buffers["Time COM"][-1])
                 elif len(self.buffers["Time COM"]) > 1:
@@ -186,7 +186,6 @@ class MainWindow(tk.Frame):
                     self.label_status.configure(text=f'Подключено к {msg}')
                     self.button_connect.configure(text="Отключиться")
                     self.check_msg()
-
 
     def disconnect(self):
         try:
@@ -287,7 +286,7 @@ if __name__ == "__main__":
     msg_queue = multiprocessing.SimpleQueue()
     stop_flag = multiprocessing.Value("i", 0)
     connected_flag = multiprocessing.Value("i", 0)
-    hertz = multiprocessing.Value("f", 1)
+    hertz = multiprocessing.Value("f", 0.5)
     mode = multiprocessing.Value("i", 0)
     lock = multiprocessing.Lock()
     root = tk.Tk()
