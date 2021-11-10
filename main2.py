@@ -26,7 +26,6 @@ class MainWindow(tk.Frame):
         self.main_queue = main_queue
         self.hertz = hertz
         self.reader_process = None
-        self.start_process_thread = None
         self.mode = mode
         # PLOT
         self.fig, self.ax = plt.subplots(figsize=(10, 5), tight_layout=True)
@@ -117,7 +116,6 @@ class MainWindow(tk.Frame):
             # convert back to data coords with respect to ax
             ax_coord = inv.transform(display_coord)
             return ("Координата: {:.0f},   коэф. заполнения: {:.0f},   время: {:.2f}".format(ax_coord[1], y, x))
-
         return format_coord
 
     def button_press(self):
@@ -157,8 +155,10 @@ class MainWindow(tk.Frame):
 
     def check_msg(self):
         if self.msg_queue.empty() is False:
-            print("cheching msg {}".format(self.msg_queue.get()))
-        self.after(75, self.check_msg)
+            msg = self.msg_queue.get()
+            if isinstance(msg, Exception):
+                self.disconnect()
+        self.after(250, self.check_msg)
 
     def connect(self):
         p = re.search("COM[0-9]+", self.COMbobox.get())
@@ -173,8 +173,13 @@ class MainWindow(tk.Frame):
             self.label_status.configure(text='Подключение...')
             self.lock.acquire()
             stop_flag.value = 0
-            self.start_process_thread = threading.Thread(target=self.start_process, args=(com_port,), daemon=True)
-            self.start_process_thread.start()
+            self.processes = []
+            print("process starting...")
+            self.reader_process = multiprocessing.Process(target=read_process, args=(
+                self.stop_flag, self.connected_flag, com_port, self.lock, self.main_queue, self.msg_queue, self.hertz,
+                self.mode), daemon=True)
+            self.reader_process.start()
+            self.check_msg()
             # k = 0
             # told = time.time()
             self.connected_flag.value = 1
@@ -197,28 +202,17 @@ class MainWindow(tk.Frame):
                     self.label_status.configure(text='Подключено к {}'.format(msg))
                     self.button_connect.configure(text="Отключиться")
 
-    def start_process(self, com_port):
-        print("thread started")
-        self.reader_process = multiprocessing.Process(target=read_process, args=(
-            self.stop_flag, self.connected_flag, com_port, self.lock, self.main_queue, self.msg_queue, self.hertz,
-            self.mode),
-                                                      daemon=True)
-        self.reader_process.start()
-        self.reader_process.join()
-        print("thread ended")
-
     def disconnect(self):
         try:
-            if self.start_process_thread is not None:
+            if self.reader_process is not None:
                 self.lock.acquire()
                 self.connected_flag.value = 0
                 self.stop_flag.value = 1
                 self.lock.release()
                 self.label_status.configure(text='Закрытие порта...')
                 self.reader_process.join()
-                while self.start_process_thread.is_alive():
-                    pass
-                self.start_process_thread = None
+                print("process closed")
+                self.reader_process = None
                 self.label_status.configure(text='Порт закрыт успешно')
         except Exception as e:
             self.label_status.configure(text=e)
@@ -232,6 +226,7 @@ class MainWindow(tk.Frame):
 
 
 def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, hertz, mode):
+    print("process started")
     ser = serial.Serial()
     told = time.perf_counter()
     k = 0
@@ -294,6 +289,7 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
                                     signal = right_lim
                                 ser.write(str(int(signal)).encode().zfill(4))
     except serial.SerialException as e:
+        print(f"Serial exception in process : {e}")
         ser.close()
         msg_queue.put(e)
 
