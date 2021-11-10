@@ -10,8 +10,7 @@ import datetime
 from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, NavigationToolbar2Tk)
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
-import numpy as np
-import math
+from numpy import sin, pi
 from queue import Empty
 
 
@@ -254,13 +253,13 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
                     queue.put(decoded)
                     t_new = time.perf_counter()
                     dt = t_new - told
-                    left_lim = 0x200
+                    left_lim = 0x100 #0x600 is a quarter
                     right_lim = 0xFFF - left_lim
                     if mode.value == 0:
                         # синусоида
                         told = t_new
                         k = k + dt * float(Hz)  # цифра это герцы
-                        signal = math.sin(2 * math.pi * k)
+                        signal = sin(2 * pi * k)
                         signal += 1
                         signal = (signal * (right_lim - left_lim)) / 2 + left_lim
                         ser.write(str(int(signal)).encode().zfill(4))
