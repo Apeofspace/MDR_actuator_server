@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import os
 import re
 
+
 def make_format(other, current):
     # current and other are axes
     def format_coord(x, y):
@@ -13,9 +14,10 @@ def make_format(other, current):
         inv = other.transData.inverted()
         # convert back to data coords with respect to ax
         ax_coord = inv.transform(display_coord)
-        return ("Координата: {:.0f},   коэф. заполнения: {:.0f},   время: {:.2f}".format(ax_coord[1], y, x))
+        return "Координата: {:.0f},   коэф. заполнения: {:.0f},   время: {:.2f}".format(ax_coord[1], y, x)
 
     return format_coord
+
 
 xcom, ycom, xobj, yobj, duty, dir = [], [], [], [], [], []
 try:
@@ -57,13 +59,12 @@ try:
     ax2.set_ylim(0, 4100)
     line1, = ax.plot(xcom, ycom, label='Управляющий сигнал')
     line2, = ax.plot(xobj, yobj, label='Значение с потенциометра')
-    line3, = ax2.plot(xcom, duty,  label='Коэффициент заполнения', color = 'green', linewidth = 0.5)
+    line3, = ax2.plot(xcom, duty, label='Коэффициент заполнения', color='green', linewidth=0.5)
     line4, = ax2.plot(xcom, dir, label='Направление', color='red', linewidth=0.5)
-    fig.canvas.manager.set_window_title(arg)
+    fig.canvas_anim.manager.set_window_title(arg)
     plt.xlabel("[мс]")
     fig.legend()
     plt.show()
 except Exception as e:
     print(e)
     sys.exit()
-

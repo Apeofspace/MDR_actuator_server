@@ -10,7 +10,7 @@ import datetime
 from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, NavigationToolbar2Tk)
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
-from numpy import sin, pi
+from math import sin, pi
 from queue import Empty
 
 
@@ -34,65 +34,102 @@ class MainWindow(tk.Frame):
                   'Duty',
                   'Dir']
         self.buffers = {name: [] for name in fields}
-        # PLOT
-        self.fig, self.ax = plt.subplots(figsize=(10, 5), tight_layout=True)
-        self.canvas = FigureCanvasTkAgg(self.fig, master=self)
-        self.toolbar = NavigationToolbar2Tk(self.canvas, self)
-        self.toolbar.update()
-        self.toolbar.pack(side='top')
+
+        #Style
+        # style = ttk.Style()
+        # style.theme_create('pastel', settings={
+        #     "TNotebook.Tab": {
+        #         "configure": {
+        #             "background": '#d9ffcc',  # tab color when not selected
+        #             "padding": [10, 2],
+        #             # [space between text and horizontal tab-button border, space between text and vertical tab_button border]
+        #             "font": "white",
+        #             "borderwidth": 2
+        #         },
+        #         "map": {
+        #             "background": [("selected", '#ccffff')],  # Tab color when selected\
+        #             "expand": [("selected", [1, 1, 1, 0])]  # text margins
+        #         }
+        #     }
+        # })
+        # style.theme_use('pastel')
+        #TabControl
+        self.tabControl = ttk.Notebook(self)
+        self.tab_animation = tk.Frame(self)
+        self.tab_lakh = tk.Frame(self)
+        self.tabControl.add(self.tab_animation, text='Анимация')
+        self.tabControl.add(self.tab_lakh, text='ЛАХ')
+        self.tabControl.pack(side='top', fill='both', expand=True)
+
+        self.draw_animation_tab()
+        self.draw_control_frame()
+
+    def draw_animation_tab(self):
+        # ANIMATION
+        # self.tab_animation.pack(side='top', padx=10, fill='both', expand=True)
+        self.fig_anim, self.ax1_anim = plt.subplots(figsize=(10, 5), tight_layout=True)
+        self.canvas_anim = FigureCanvasTkAgg(self.fig_anim, master=self.tab_animation)
+        self.toolbar_anim = NavigationToolbar2Tk(self.canvas_anim, self.tab_animation)
+        self.toolbar_anim.update()
+        self.toolbar_anim.pack(side='top')
         plt.grid(b=True, which='major', axis='both')
-        self.ax2 = self.ax.twinx()
-        self.ax2.format_coord = self.make_format(self.ax, self.ax2)
-        self.line_duty, = self.ax2.plot(0, 0, label='Коэффициент заполнения',
-                                        color='green', linewidth=0.5)
-        self.line_dir, = self.ax2.plot(0, 0, label='Направление',
-                                       color='red', linewidth=0.5)
-        # , linewidth = 0.5, marker = "o", markersize = 0.5
-        self.line1, = self.ax.plot(0, 0, label='Управляющий сигнал')
-        self.line2, = self.ax.plot(0, 0, label='Значение с потенциометра')
-        self.fig.legend()
-        self.ax.set_ylim(0, 4100)
-        self.ax2.set_ylim(0, 4100)
-        self.canvas.get_tk_widget().pack(side='top', fill='both', expand=True)
-        self.ani = FuncAnimation(self.fig, self.animate, interval=16, blit=False)
+        self.ax2_anim = self.ax1_anim.twinx()
+        self.ax2_anim.format_coord = self.make_format(self.ax1_anim, self.ax2_anim)
+        self.line_duty, = self.ax2_anim.plot(0, 0, label='Коэффициент заполнения',
+                                             color='green', linewidth=0.5)
+        self.line_dir, = self.ax2_anim.plot(0, 0, label='Направление',
+                                            color='red', linewidth=0.5)
+        self.line1_COM, = self.ax1_anim.plot(0, 0, label='Управляющий сигнал')
+        self.line_OBJ, = self.ax1_anim.plot(0, 0, label='Значение с потенциометра')
+        self.fig_anim.legend()
+        self.ax1_anim.set_ylim(0, 4100)
+        self.ax2_anim.set_ylim(0, 4100)
+        self.canvas_anim.get_tk_widget().pack(side='top', fill='both', expand=True)
+        self.animation = FuncAnimation(self.fig_anim, self.animate, interval=16, blit=False)
+        # dont let the animation run. doesnt work?
+        self.animation.event_source.stop()
         plt.xlabel("[мс]")
-        # plt.grid(b=True, which='major', axis='both')
-        # COMbobox, button and label
-        self.frame1 = tk.Frame(root)
-        self.frame1.pack(side='bottom', padx=10, pady=10, fill='x')
-        self.label_com = tk.Label(self.frame1, text='Порт ')
-        self.label_com.pack(side='left', padx=10)
-        self.COMboboxvar = tk.StringVar()
-        self.COMbobox = tk.ttk.Combobox(self.frame1, textvariable=self.COMboboxvar)
-        self.COMbobox['values'] = list(serial.tools.list_ports.comports())
-        self.COMbobox['state'] = 'readonly'
-        self.COMbobox.set('COM13')
-        self.COMbobox.pack(side='left')
-        self.button_connect = tk.Button(self.frame1, text="Подключиться", command=self.button_press, width=25)
-        self.button_connect.pack(side='left', padx=(20, 10))
         # hertz
-        self.hertz_label = tk.Label(self.frame1, text='Частота [Гц]: ')
+        self.hertz_label = tk.Label(self.tab_animation, text='Частота [Гц]: ')
         self.hertz_label.pack(side='left', padx=10)
         self.hertz_var = tk.StringVar()
         self.hertz_var.set(self.hertz.value)
         self.hertz_var.trace("w", lambda name, index, mode, hertz_var=self.hertz_var: self.hertz_callback(hertz_var))
-        self.hertz_entry = tk.Entry(self.frame1, textvariable=self.hertz_var)
+        self.hertz_entry = tk.Entry(self.tab_animation, textvariable=self.hertz_var)
         self.hertz_entry.pack(side='left', padx=(0, 15))
         # mode combobox
         self.mode_combobox_var = tk.StringVar()
-        self.mode_combobox = tk.ttk.Combobox(self.frame1, textvariable=self.mode_combobox_var)
+        self.mode_combobox = tk.ttk.Combobox(self.tab_animation, textvariable=self.mode_combobox_var)
         self.mode_combobox['values'] = ["Синусоида", "Меандр"]
         self.mode_combobox['state'] = 'readonly'
         self.mode_combobox.current(newindex=0)
         self.mode_combobox.bind('<<ComboboxSelected>>', lambda func: self.mode_combobox_modified())
         self.mode_combobox.pack(side='left')
+
+    def draw_control_frame(self):
+        # COMbobox, button and label
+        self.frame_controls = tk.Frame(self)
+        self.frame_controls.pack(side='bottom', padx=10, pady=10, fill='x')
+        self.label_com = tk.Label(self.frame_controls, text='Порт ')
+        self.label_com.pack(side='left', padx=10)
+        self.COMboboxvar = tk.StringVar()
+        self.COMbobox = tk.ttk.Combobox(self.frame_controls, textvariable=self.COMboboxvar)
+        self.COMbobox['values'] = list(serial.tools.list_ports.comports())
+        self.COMbobox['state'] = 'readonly'
+        self.COMbobox.set('COM13')
+        self.COMbobox.pack(side='left')
+        self.button_connect = tk.Button(self.frame_controls, text="Подключиться", command=self.button_press, width=25)
+        self.button_connect.pack(side='left', padx=(20, 10))
         # labelstatus
-        self.label_status = tk.Label(self.frame1, text="Не подключено")
+        self.label_status = tk.Label(self.frame_controls, text="Не подключено")
         self.label_status.pack(side='left', padx=5, fill='x')
+
+    def draw_lakh_tab(self):
+        # self.
+        ...
 
     def mode_combobox_modified(self):
         self.mode.value = self.mode_combobox.current()
-        # print(self.mode.value)
 
     def hertz_callback(self, hertz_var):
         global hertz
@@ -133,11 +170,11 @@ class MainWindow(tk.Frame):
                     for value in self.buffers.values():
                         value.pop(0)
                 if len(self.buffers["Time COM"]) > self.show_on_plot:
-                    self.ax.set_xlim(self.buffers["Time COM"][-self.show_on_plot], self.buffers["Time COM"][-1])
+                    self.ax1_anim.set_xlim(self.buffers["Time COM"][-self.show_on_plot], self.buffers["Time COM"][-1])
                 elif len(self.buffers["Time COM"]) > 1:
-                    self.ax.set_xlim(self.buffers["Time COM"][0], self.buffers["Time COM"][-1])
-                self.line1.set_data(self.buffers["Time COM"], self.buffers["COM"])
-                self.line2.set_data(self.buffers["Time OBJ"], self.buffers["OBJ"])
+                    self.ax1_anim.set_xlim(self.buffers["Time COM"][0], self.buffers["Time COM"][-1])
+                self.line1_COM.set_data(self.buffers["Time COM"], self.buffers["COM"])
+                self.line_OBJ.set_data(self.buffers["Time OBJ"], self.buffers["OBJ"])
                 self.line_duty.set_data(self.buffers["Time COM"], self.buffers["Duty"])
                 self.line_dir.set_data(self.buffers["Time COM"], self.buffers["Dir"])
             except Empty:
@@ -184,6 +221,7 @@ class MainWindow(tk.Frame):
                 else:
                     self.label_status.configure(text=f'Подключено к {msg}')
                     self.button_connect.configure(text="Отключиться")
+                    self.animation.event_source.start()
                     self.check_msg()
 
     def disconnect(self):
@@ -197,7 +235,10 @@ class MainWindow(tk.Frame):
                 self.reader_process.join()
                 print("process closed")
                 self.reader_process = None
+                while not self.main_queue.empty():
+                    self.main_queue.get()
                 self.label_status.configure(text='Порт закрыт успешно')
+                self.animation.event_source.stop()
         except Exception as e:
             self.label_status.configure(text=e)
         finally:
@@ -253,7 +294,7 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
                     queue.put(decoded)
                     t_new = time.perf_counter()
                     dt = t_new - told
-                    left_lim = 0x100 #0x600 is a quarter
+                    left_lim = 0x100  # 0x600 is a quarter
                     right_lim = 0xFFF - left_lim
                     if mode.value == 0:
                         # синусоида
@@ -277,6 +318,9 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
         print(f"Serial exception in process : {e}")
         ser.close()
         msg_queue.put(e)
+
+def lakh_process():
+    ...
 
 
 if __name__ == "__main__":
