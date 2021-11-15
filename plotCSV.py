@@ -61,7 +61,7 @@ try:
     line2, = ax.plot(xobj, yobj, label='Значение с потенциометра')
     line3, = ax2.plot(xcom, duty, label='Коэффициент заполнения', color='green', linewidth=0.5)
     line4, = ax2.plot(xcom, dir, label='Направление', color='red', linewidth=0.5)
-    fig.canvas_anim.manager.set_window_title(arg)
+    fig.canvas.manager.set_window_title(arg)
     plt.xlabel("[мс]")
     fig.legend()
     plt.show()
