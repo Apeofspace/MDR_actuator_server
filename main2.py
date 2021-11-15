@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from math import sin, pi
 from queue import Empty
+import fourier
 
 
 class MainWindow(tk.Frame):
@@ -269,7 +270,6 @@ class MainWindow(tk.Frame):
                 self.lakh_process = multiprocessing.Process(target=lakh_process, args=(
                     self.stop_flag, self.connected_flag, com_port, self.lock, self.main_queue, self.msg_queue,
                     frequencies), daemon=True)
-                # !!!
                 self.lakh_process.start()
                 self.lock.acquire()
                 self.connected_flag.value = 1
@@ -363,7 +363,6 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
         current_frequency = frequencies[0]
         current_frequency_index = 0
         period = 0
-
         ser.baudrate = 115200
         ser.port = com_port
         ser.open()
@@ -397,12 +396,9 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
                         print(f'new freq {current_frequency}')
                         period = 0
                     k = k + dt * float(current_frequency)  # цифра это герцы
-                    # print(f"k = {k}")
                     signal = sin(2 * pi * k)
                     signal += 1
                     signal = (signal * (right_lim - left_lim)) / 2 + left_lim
-                    # if period !=4:
-                    #     time.sleep(0.0005) #максимум холхоз
                     ser.write(str(int(signal)).encode().zfill(4))
                     if k > (kold + 1):
                         # обнаружена смена периода
@@ -410,6 +406,7 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
                         period += 1
                         print(f'new period {period}')
                     #страшный ужасающий костыль (это все должно быть под период == 4)
+                    #но в этом случае процесс выполняется слишком быстро и виснет
                     wtftime = time.perf_counter()
                     line = ser.read(size=28)
                     if first_time:
@@ -427,7 +424,7 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
                         # четвертый период записывается
                         csv_writer.writerow(decoded)
                         queue.put(decoded)
-                        print(time.perf_counter() - wtftime)
+                        # print(time.perf_counter() - wtftime)
     except Exception as e:
         print(f"Exception in lakh process : {e}")
         ser.close()
