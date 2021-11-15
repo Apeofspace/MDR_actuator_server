@@ -205,7 +205,10 @@ class MainWindow(tk.Frame):
                 print("empty que =(")
 
     def check_msg(self):
-        if self.stop_flag.value == 0:
+        self.lock.acquire()
+        stop_flag = self.stop_flag.value
+        self.lock.release()
+        if stop_flag == 0:
             if self.msg_queue.empty() is False:
                 msg = self.msg_queue.get()
                 if isinstance(msg, Exception):
@@ -224,12 +227,14 @@ class MainWindow(tk.Frame):
             if selected_tab == 0:
                 self.lock.acquire()
                 stop_flag.value = 0
+                self.lock.release()
                 print("process starting...")
                 self.reader_process = multiprocessing.Process(target=read_process, args=(
                     self.stop_flag, self.connected_flag, com_port, self.lock, self.main_queue, self.msg_queue,
                     self.hertz,
                     self.mode), daemon=True)
                 self.reader_process.start()
+                self.lock.acquire()
                 self.connected_flag.value = 1
                 self.lock.release()
                 i = 0
@@ -253,17 +258,20 @@ class MainWindow(tk.Frame):
                         self.check_msg()
             # ЛАХИ
             elif selected_tab == 1:
-                # frequencies = re.findall("(\d+\.?\d+?)", self.hertz_lakh_var.get())
-                frequencies = [1, 2, 3, 5]
+                frequencies = re.findall("(\d+[\.]?[\d+]?)", self.hertz_lakh_var.get())
+                # frequencies = [1, 2, 3, 5]
+                #это место можно усовершенствовать. Нужно, чтобы строка искалась до запятой
                 print(frequencies)
                 self.lock.acquire()
                 stop_flag.value = 0
+                self.lock.release()
                 print("lakh process starting...")
                 self.lakh_process = multiprocessing.Process(target=lakh_process, args=(
                     self.stop_flag, self.connected_flag, com_port, self.lock, self.main_queue, self.msg_queue,
                     frequencies), daemon=True)
                 # !!!
                 self.lakh_process.start()
+                self.lock.acquire()
                 self.connected_flag.value = 1
                 self.lock.release()
                 i = 0
@@ -381,10 +389,10 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
                     told = t_new
                     if period >= 5:
                         # переход на следующую частоту
-                        if current_frequency_index == number_of_frequencies-1:
-                            print('end of exp')
+                        if current_frequency_index == number_of_frequencies - 1:
+                            print('end of experiment')
                             return  # закончен эксперимент
-                        current_frequency_index+=1
+                        current_frequency_index += 1
                         current_frequency = frequencies[current_frequency_index]
                         print(f'new freq {current_frequency}')
                         period = 0
@@ -401,24 +409,25 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
                         kold = k
                         period += 1
                         print(f'new period {period}')
+                    #страшный ужасающий костыль (это все должно быть под период == 4)
+                    wtftime = time.perf_counter()
+                    line = ser.read(size=28)
+                    if first_time:
+                        initial_com_time = float(int.from_bytes(line[4:12], "little")) / 80000
+                        initial_obj_time = float(int.from_bytes(line[12:20], "little")) / 80000
+                        first_time = False
+                    decoded = {'Time COM': float(int.from_bytes(line[4:12], "little")) / 80000 - initial_com_time,
+                               'Time OBJ': float(int.from_bytes(line[12:20], "little")) / 80000 - initial_obj_time,
+                               'COM': int.from_bytes(line[2:4], "little"),
+                               'OBJ': int.from_bytes(line[0:2], "little"),
+                               'Duty': int.from_bytes(line[20:24], "little"),
+                               'Dir': int.from_bytes(line[24:28], "little") * 100,
+                               'Frequency': current_frequency}
                     if period == 4:
                         # четвертый период записывается
-                        wtftime = time.perf_counter()
-                        line = ser.read(size=28)
-                        if first_time:
-                            initial_com_time = float(int.from_bytes(line[4:12], "little")) / 80000
-                            initial_obj_time = float(int.from_bytes(line[12:20], "little")) / 80000
-                            first_time = False
-                        decoded = {'Time COM': float(int.from_bytes(line[4:12], "little")) / 80000 - initial_com_time,
-                                   'Time OBJ': float(int.from_bytes(line[12:20], "little")) / 80000 - initial_obj_time,
-                                   'COM': int.from_bytes(line[2:4], "little"),
-                                   'OBJ': int.from_bytes(line[0:2], "little"),
-                                   'Duty': int.from_bytes(line[20:24], "little"),
-                                   'Dir': int.from_bytes(line[24:28], "little") * 100,
-                                   'Frequency': current_frequency}
                         csv_writer.writerow(decoded)
                         queue.put(decoded)
-                        print(time.perf_counter()-wtftime)
+                        print(time.perf_counter() - wtftime)
     except Exception as e:
         print(f"Exception in lakh process : {e}")
         ser.close()
@@ -490,7 +499,7 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
                                 else:
                                     signal = right_lim
                                 ser.write(str(int(signal)).encode().zfill(4))
-    except serial.SerialException as e:
+    except Exception as e:
         print(f"Serial exception in process : {e}")
         ser.close()
         msg_queue.put(e)
