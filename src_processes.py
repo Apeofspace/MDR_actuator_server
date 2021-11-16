@@ -46,6 +46,7 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
                     told = t_new
                     if period >= 5:
                         # переход на следующую частоту
+                        msg_queue.put("draw") #!!сообщение о том, что очередь заполнена!!
                         if current_frequency_index == number_of_frequencies - 1:
                             print('end of experiment')
                             msg_queue.put("Конец эксперимента")
@@ -82,7 +83,6 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
                     if period == 4:
                         # !!ОТПРАВКА ДАННЫХ В ОЧЕРЕДЬ!!
                         csv_writer.writerow(decoded)
-                        msg_queue.put("draw")
                         queue.put(decoded)
 
     except Exception as e:

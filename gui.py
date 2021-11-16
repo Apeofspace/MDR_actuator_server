@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from queue import Empty
 from src_processes import *
-from fourier import LAFCH
+from fourier import LAFCH, A
 
 
 class MainWindow(tk.Frame):
@@ -157,23 +157,27 @@ class MainWindow(tk.Frame):
         while self.main_queue.qsize():
             try:
                 buf = self.main_queue.get()
+                i+=1
                 #dict apprehension instead of append
                 for key in buf.keys():
                     self.buffers[key].append(buf[key])
-                    i+=1
             except Empty:
+                #doesnt ever work with manager ques, ugh..
                 print("empty que =(")
-            print(f"i = {i}")
-            lah, lfh = LAFCH(self.buffers['OBJ'], self.buffers['COM'], self.buffers['Time COM'], self.buffers['Frequency'][0])
-            self.buffers['lah'].append(lah)
-            self.buffers['lfh'].append(lfh)
-            self.buffers['log_omega'].append(math.log10(self.buffers['Frequency'][0]))
-            self.line_lakh_amp.set_data(self.buffers['log_omega'], self.buffers['lah'])
-            self.line_lakh_phase.set_data(self.buffers['log_omega'], self.buffers['lfh'])
-            plt.draw()
-            for key in self.buffers.keys():
-                if key not in ("lah", "lfh", "log_omega"):
-                    self.buffers[key] = []
+        print(f"Количество точек = {i}")
+        lah, lfh = LAFCH(self.buffers['OBJ'],
+                         self.buffers['COM'],
+                         self.buffers['Time COM'],
+                         self.buffers['Frequency'][0])
+        self.buffers['lah'].append(lah)
+        self.buffers['lfh'].append(lfh)
+        self.buffers['log_omega'].append(math.log10(self.buffers['Frequency'][0]))
+        self.line_lakh_amp.set_data(self.buffers['log_omega'], self.buffers['lah'])
+        self.line_lakh_phase.set_data(self.buffers['log_omega'], self.buffers['lfh'])
+        plt.draw()
+        for key in self.buffers.keys():
+            if key not in ("lah", "lfh", "log_omega"):
+                self.buffers[key] = []
 
     # def test(self):
     #     self.line_lakh_amp.set_data([1,10],[50, -50])
@@ -331,6 +335,7 @@ class MainWindow(tk.Frame):
             # ЛАХИ
             elif selected_tab == 1:
                 frequencies = re.findall("(\d+[\.]?[\d+]?)", self.hertz_lakh_var.get())
+                frequencies = [float(f) for f in frequencies]
                 # frequencies = [1, 2, 3, 5]
                 # это место можно усовершенствовать. Нужно, чтобы строка искалась до запятой
                 print(frequencies)

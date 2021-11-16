@@ -6,10 +6,7 @@ def A(F, t, f, k=1):
     """аргументы: функция (массив точек), время(массив точек),
     частота, количество точек в периоде, номер гармоники"""
     n = len(F)
-    # r = (2 / n) * sum([F[i] * cos(t[i] * 2 * pi * f * k) for i in range(n)])
-    r = (2 / n) * sum([cos(t[i] * 2 * pi * f * k) for i in range(n)])
-    # r = (2 / n) * sum([F[i] for i in range(n)])
-    return r
+    return (2 / n) * sum([F[i] * cos(t[i] * 2 * pi * f * k) for i in range(n)])
 
 
 def B(F, t, f, k=1):
@@ -57,7 +54,7 @@ def LAFCH(Out, In, t, f):
     Bin = B(In, t, f)
     Aout = A(Out, t, f)
     Bout = B(Out, t, f)
-    return [abs_W(Out, In), ksi(Ain, Bin, Aout, Bout)]
+    return [abs_W(Ain, Bin, Aout, Bout), ksi(Ain, Bin, Aout, Bout)]
 
 
 if __name__ == "__main__":
