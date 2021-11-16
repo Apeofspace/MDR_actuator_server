@@ -21,11 +21,22 @@ def A0(F, n):
 
 # Разложение в ряд Фурье
 def fourier(t, f, A0, A1, B1):
-    """Создание списка типа [t, F] для построения ряда Фурье"""
-    # F = []
-    # for i in range(len(t)):
-    #     ft = A0 / 2 + A1 * math.cos(2 * math.pi * f * t[i]) + B1 * math.sin(2 * math.pi * f * t[i])
-    #     F.append(ft)
+    """Создание списка типа [t, F] для построения ряда Фурье
+    Аргументы: массив времени, частота, коэффициенты"""
     F = [A0 / 2 + A1 * math.cos(2 * math.pi * f * t[i]) + B1 * math.sin(2 * math.pi * f * t[i]) for i in range(len(t))]
     return [t, F]
+
+def abs_W():
+    """Создание списка типа [t, F] для построения ЛАХ
+    Аргументы: массив времени, массив амплитуд"""
+    AbsW = max(abs(i) for i in FurOut[1])/max(abs(i) for i in FurIn[1])
+    AbsWlog =20*math.log(max(abs(i) for i in FurOut[1])/max(abs(i) for i in FurIn[1]))
+    print('Отношение амплитуд выходного к входному: {} [В/B]'.format(AbsW))
+    print('Отношение амплитуд выходного к входному: {} [дБ]'.format(AbsWlog))
+
+def ksi():
+    """Создание списка типа [t, F] для построения ЛАЧХ
+    Аргументы: массив времени, массив амплитуд"""
+    ksi = (math.atan(A1Uin / B1Uin) - math.atan(A1Uout / B1Uout)) * 180 / math.pi
+    print('Запаздывание по фазе равно: {} градусов'.format(ksi))
 

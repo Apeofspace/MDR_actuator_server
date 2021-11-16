@@ -1,17 +1,13 @@
 import multiprocessing
 import tkinter as tk
 from tkinter import ttk
-import serial
 import serial.tools.list_ports
 import re
-import time
-import csv
-import datetime
 from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, NavigationToolbar2Tk)
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
-from math import sin, pi
 from queue import Empty
+from src_processes import *
 import fourier
 
 
@@ -227,7 +223,7 @@ class MainWindow(tk.Frame):
             # АНИМАЦИЯ
             if selected_tab == 0:
                 self.lock.acquire()
-                stop_flag.value = 0
+                self.stop_flag.value = 0
                 self.lock.release()
                 print("process starting...")
                 self.reader_process = multiprocessing.Process(target=read_process, args=(
@@ -264,7 +260,7 @@ class MainWindow(tk.Frame):
                 #это место можно усовершенствовать. Нужно, чтобы строка искалась до запятой
                 print(frequencies)
                 self.lock.acquire()
-                stop_flag.value = 0
+                self.stop_flag.value = 0
                 self.lock.release()
                 print("lakh process starting...")
                 self.lakh_process = multiprocessing.Process(target=lakh_process, args=(
@@ -342,178 +338,7 @@ class MainWindow(tk.Frame):
 
     def on_closing(self):
         self.disconnect()
-        root.quit()
-        root.destroy()
+        # root.quit()
+        # root.destroy()
+        self.quit()
 
-
-def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, frequencies):
-    print("lakh process started")
-    ser = serial.Serial()
-    told = time.perf_counter()
-    k = 0
-    kold = 0
-    first_time = True
-    fields = ["Time COM", "Time OBJ", "COM", "OBJ", "Duty", "Dir", "Frequency"]
-    left_lim = 0x100  # 0x600 is a quarter
-    right_lim = 0xFFF - left_lim
-    try:
-        number_of_frequencies = len(frequencies)
-        if number_of_frequencies == 0:
-            raise IndexError
-        current_frequency = frequencies[0]
-        current_frequency_index = 0
-        period = 0
-        ser.baudrate = 115200
-        ser.port = com_port
-        ser.open()
-        msg_queue.put(ser.portstr)
-        with open("LAKH_{}.csv".format(datetime.datetime.now().strftime("%Y_%m_%d-%H%M%S")), 'w',
-                  newline='') as csv_file:
-            csv_writer = csv.DictWriter(csv_file, fieldnames=fields)
-            csv_writer.writeheader()
-            print("header written")
-            while True:
-                lock.acquire()
-                stop = stop_flag.value
-                connected = connected_flag.value
-                lock.release()
-                if stop:
-                    print("stopping process")
-                    ser.close()
-                    print("serial closed")
-                    break
-                if connected:
-                    t_new = time.perf_counter()
-                    dt = t_new - told
-                    told = t_new
-                    if period >= 5:
-                        # переход на следующую частоту
-                        if current_frequency_index == number_of_frequencies - 1:
-                            print('end of experiment')
-                            return  # закончен эксперимент
-                        current_frequency_index += 1
-                        current_frequency = frequencies[current_frequency_index]
-                        print(f'new freq {current_frequency}')
-                        period = 0
-                    k = k + dt * float(current_frequency)  # цифра это герцы
-                    signal = sin(2 * pi * k)
-                    signal += 1
-                    signal = (signal * (right_lim - left_lim)) / 2 + left_lim
-                    ser.write(str(int(signal)).encode().zfill(4))
-                    if k > (kold + 1):
-                        # обнаружена смена периода
-                        kold = k
-                        period += 1
-                        print(f'new period {period}')
-                    #страшный ужасающий костыль (это все должно быть под период == 4)
-                    #но в этом случае процесс выполняется слишком быстро и виснет
-                    wtftime = time.perf_counter()
-                    line = ser.read(size=28)
-                    if first_time:
-                        initial_com_time = float(int.from_bytes(line[4:12], "little")) / 80000
-                        initial_obj_time = float(int.from_bytes(line[12:20], "little")) / 80000
-                        first_time = False
-                    decoded = {'Time COM': float(int.from_bytes(line[4:12], "little")) / 80000 - initial_com_time,
-                               'Time OBJ': float(int.from_bytes(line[12:20], "little")) / 80000 - initial_obj_time,
-                               'COM': int.from_bytes(line[2:4], "little"),
-                               'OBJ': int.from_bytes(line[0:2], "little"),
-                               'Duty': int.from_bytes(line[20:24], "little"),
-                               'Dir': int.from_bytes(line[24:28], "little") * 100,
-                               'Frequency': current_frequency}
-                    if period == 4:
-                        # четвертый период записывается
-                        csv_writer.writerow(decoded)
-                        queue.put(decoded)
-                        # print(time.perf_counter() - wtftime)
-    except Exception as e:
-        print(f"Exception in lakh process : {e}")
-        ser.close()
-        msg_queue.put(e)
-
-
-def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, hertz, mode):
-    print("process started")
-    ser = serial.Serial()
-    told = time.perf_counter()
-    k = 0
-    first_time = True
-    signal = 0
-    fields = ["Time COM", "Time OBJ", "COM", "OBJ", "Duty", "Dir", "Frequency"]
-    left_lim = 0x100  # 0x600 is a quarter
-    right_lim = 0xFFF - left_lim
-    try:
-        ser.baudrate = 115200
-        ser.port = com_port
-        ser.open()
-        msg_queue.put(ser.portstr)
-        with open("Data_{}.csv".format(datetime.datetime.now().strftime("%Y_%m_%d-%H%M%S")), 'w',
-                  newline='') as csv_file:
-            csv_writer = csv.DictWriter(csv_file, fieldnames=fields)
-            csv_writer.writeheader()
-            while True:
-                lock.acquire()
-                stop = stop_flag.value
-                connected = connected_flag.value
-                Hz = hertz.value
-                lock.release()
-                if stop:
-                    print("stopping process")
-                    ser.close()
-                    print("serial closed")
-                    break
-                if connected:
-                    line = ser.read(size=28)
-                    if first_time:
-                        initial_com_time = float(int.from_bytes(line[4:12], "little")) / 80000
-                        initial_obj_time = float(int.from_bytes(line[12:20], "little")) / 80000
-                        first_time = False
-                    decoded = {'Time COM': float(int.from_bytes(line[4:12], "little")) / 80000 - initial_com_time,
-                               'Time OBJ': float(int.from_bytes(line[12:20], "little")) / 80000 - initial_obj_time,
-                               'COM': int.from_bytes(line[2:4], "little"),
-                               'OBJ': int.from_bytes(line[0:2], "little"),
-                               'Duty': int.from_bytes(line[20:24], "little"),
-                               'Dir': int.from_bytes(line[24:28], "little") * 100,
-                               'Frequency': Hz}
-                    csv_writer.writerow(decoded)
-                    queue.put(decoded)
-                    t_new = time.perf_counter()
-                    dt = t_new - told
-                    if mode.value == 0:
-                        # синусоида
-                        told = t_new
-                        k = k + dt * float(Hz)  # цифра это герцы
-                        signal = sin(2 * pi * k)
-                        signal += 1
-                        signal = (signal * (right_lim - left_lim)) / 2 + left_lim
-                        ser.write(str(int(signal)).encode().zfill(4))
-                    elif mode.value == 1:
-                        # меандр
-                        if not (Hz == 0):
-                            if dt > 1 / Hz:
-                                told = t_new
-                                if signal == right_lim:
-                                    signal = left_lim
-                                else:
-                                    signal = right_lim
-                                ser.write(str(int(signal)).encode().zfill(4))
-    except Exception as e:
-        print(f"Serial exception in process : {e}")
-        ser.close()
-        msg_queue.put(e)
-
-
-if __name__ == "__main__":
-    q_manager = multiprocessing.Manager()
-    main_queue = q_manager.Queue()
-    msg_queue = multiprocessing.SimpleQueue()
-    stop_flag = multiprocessing.Value("i", 0)
-    connected_flag = multiprocessing.Value("i", 0)
-    hertz = multiprocessing.Value("f", 0.5)
-    mode = multiprocessing.Value("i", 0)
-    lock = multiprocessing.Lock()
-    root = tk.Tk()
-    root.title("Sin Animation")
-    MainWindow = MainWindow(root, connected_flag, stop_flag, msg_queue, main_queue, lock, hertz, mode)
-    MainWindow.pack(side="top", fill="both", expand=True)
-    root.wm_protocol("WM_DELETE_WINDOW", MainWindow.on_closing)
-    root.mainloop()

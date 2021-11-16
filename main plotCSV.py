@@ -3,6 +3,7 @@ import sys
 import matplotlib.pyplot as plt
 import os
 import re
+from fourier import *
 
 
 def make_format(other, current):
@@ -17,6 +18,22 @@ def make_format(other, current):
         return "Координата: {:.0f},   коэф. заполнения: {:.0f},   время: {:.2f}".format(ax_coord[1], y, x)
 
     return format_coord
+
+
+def linearize(xobj, yobj):
+    # частоту f надо что бы он сам определял
+    # надо чтобы он сам определял начало и конец периода
+    # надо чтобы гарантированно каждый период отрабатывал с одинаковой частотой
+    n = 2000
+    t = [x/1000 for x in xobj[2000:4000]]
+    # n = len(xobj)
+    # t = [x / 1000 for x in xobj]
+    f = 0.5
+    k = 1
+    F = yobj[2000:4000]
+    # F = yobj
+    x, y = fourier(t, f, A0(F, n), A(F, t, f, n), B(F, t, f, n))
+    return [x1*1000 for x1 in x], y
 
 
 xcom, ycom, xobj, yobj, duty, dir = [], [], [], [], [], []
@@ -59,12 +76,14 @@ try:
     ax2.set_ylim(0, 4100)
     line1, = ax.plot(xcom, ycom, label='Управляющий сигнал')
     line2, = ax.plot(xobj, yobj, label='Значение с потенциометра')
-    line3, = ax2.plot(xcom, duty, label='Коэффициент заполнения', color='green', linewidth=0.5)
+    line3, = ax2.plot(xcom, duty, label='Коэффициент заполнения', color='green', linewidth=0.7)
     line4, = ax2.plot(xcom, dir, label='Направление', color='red', linewidth=0.5)
+    # linxobj, linyobj = linearize(xobj, yobj)
+    # line5, = ax.plot(linxobj, linyobj, label='Линеаризованное значение', color='purple', linewidth=0.5)
     fig.canvas.manager.set_window_title(arg)
     plt.xlabel("[мс]")
     fig.legend()
     plt.show()
-except Exception as e:
+except FileNotFoundError as e:
     print(e)
     sys.exit()
