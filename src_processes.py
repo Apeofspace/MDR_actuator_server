@@ -48,6 +48,7 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
                         # переход на следующую частоту
                         if current_frequency_index == number_of_frequencies - 1:
                             print('end of experiment')
+                            msg_queue.put("Конец эксперимента")
                             return  # закончен эксперимент
                         current_frequency_index += 1
                         current_frequency = frequencies[current_frequency_index]
@@ -79,10 +80,11 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
                                'Dir': int.from_bytes(line[24:28], "little") * 100,
                                'Frequency': current_frequency}
                     if period == 4:
-                        # четвертый период записывается
+                        # !!ОТПРАВКА ДАННЫХ В ОЧЕРЕДЬ!!
                         csv_writer.writerow(decoded)
+                        msg_queue.put("draw")
                         queue.put(decoded)
-                        # print(time.perf_counter() - wtftime)
+
     except Exception as e:
         print(f"Exception in lakh process : {e}")
         ser.close()
