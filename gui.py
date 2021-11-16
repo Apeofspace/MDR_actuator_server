@@ -245,9 +245,9 @@ class MainWindow(tk.Frame):
                 if self.msg_queue.empty() is False:
                     msg = self.msg_queue.get()
                     print(f"Connected to : {msg}")
-                    if msg == serial.SerialException:
-                        self.label_status.configure(text=msg)
+                    if isinstance(msg, Exception):
                         self.disconnect()
+                        self.label_status.configure(text=msg)
                     else:
                         self.label_status.configure(text=f'Подключено к {msg}')
                         self.button_connect.configure(text="Отключиться")
@@ -281,9 +281,9 @@ class MainWindow(tk.Frame):
                 if self.msg_queue.empty() is False:
                     msg = self.msg_queue.get()
                     print(f"Connected to : {msg}")
-                    if msg == serial.SerialException:
-                        self.label_status.configure(text=msg)
+                    if isinstance(msg, Exception):
                         self.disconnect()
+                        self.label_status.configure(text=msg)
                     else:
                         self.label_status.configure(text=f'Подключено к {msg}')
                         self.button_connect.configure(text="Отключиться")
