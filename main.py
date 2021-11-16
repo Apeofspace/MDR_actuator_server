@@ -3,6 +3,7 @@ import tkinter as tk
 from gui import MainWindow
 
 if __name__ == "__main__":
+    multiprocessing.freeze_support()
     q_manager = multiprocessing.Manager()
     main_queue = q_manager.Queue()
     msg_queue = multiprocessing.SimpleQueue()
