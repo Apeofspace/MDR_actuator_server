@@ -14,6 +14,11 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
     fields = ["Time COM", "Time OBJ", "COM", "OBJ", "Duty", "Dir", "Frequency"]
     left_lim = 0x100  # 0x600 is a quarter
     right_lim = 0xFFF - left_lim
+    periods_to_use = 5
+    period_to_rec = 4
+    frequency_to_change_periods = 6
+    periods_to_use2 = 12
+    period_to_rec2 = 10
     try:
         number_of_frequencies = len(frequencies)
         if number_of_frequencies == 0:
@@ -44,17 +49,20 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
                     t_new = time.perf_counter()
                     dt = t_new - told
                     told = t_new
-                    if period >= 5:
+                    if period >= periods_to_use:
                         # переход на следующую частоту
                         msg_queue.put("draw") #!!сообщение о том, что очередь заполнена!!
                         if current_frequency_index == number_of_frequencies - 1:
-                            print('end of experiment')
+                            print('Конец эксперимента')
                             msg_queue.put("Конец эксперимента")
                             return  # закончен эксперимент
                         current_frequency_index += 1
                         current_frequency = frequencies[current_frequency_index]
-                        print(f'new freq {current_frequency}')
+                        print(f'Новая частота: {current_frequency}')
                         period = 0
+                        if current_frequency > frequency_to_change_periods: #смена количества периодов
+                            periods_to_use = periods_to_use2
+                            period_to_rec = period_to_rec2
                     k = k + dt * float(current_frequency)  # цифра это герцы
                     signal = sin(2 * pi * k)
                     signal += 1
@@ -64,23 +72,24 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
                         # обнаружена смена периода
                         kold = k
                         period += 1
-                        print(f'new period {period}')
+                        # print(f'Новый период {period}')
+                        first_time=True
                     #страшный ужасающий костыль (это все должно быть под период == 4)
                     #но в этом случае процесс выполняется слишком быстро и виснет
                     wtftime = time.perf_counter()
                     line = ser.read(size=28)
                     if first_time:
-                        initial_com_time = float(int.from_bytes(line[4:12], "little")) / 80000
-                        initial_obj_time = float(int.from_bytes(line[12:20], "little")) / 80000
+                        initial_com_time = float(int.from_bytes(line[4:12], "little")) / 80000000
+                        initial_obj_time = float(int.from_bytes(line[12:20], "little")) / 80000000
                         first_time = False
-                    decoded = {'Time COM': float(int.from_bytes(line[4:12], "little")) / 80000 - initial_com_time,
-                               'Time OBJ': float(int.from_bytes(line[12:20], "little")) / 80000 - initial_obj_time,
+                    decoded = {'Time COM': float(int.from_bytes(line[4:12], "little")) / 80000000 - initial_com_time,
+                               'Time OBJ': float(int.from_bytes(line[12:20], "little")) / 80000000 - initial_obj_time,
                                'COM': int.from_bytes(line[2:4], "little"),
                                'OBJ': int.from_bytes(line[0:2], "little"),
                                'Duty': int.from_bytes(line[20:24], "little"),
                                'Dir': int.from_bytes(line[24:28], "little") * 100,
                                'Frequency': current_frequency}
-                    if period == 4:
+                    if period == period_to_rec:
                         # !!ОТПРАВКА ДАННЫХ В ОЧЕРЕДЬ!!
                         csv_writer.writerow(decoded)
                         queue.put(decoded)

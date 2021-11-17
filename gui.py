@@ -1,6 +1,5 @@
 import math
 import multiprocessing
-import queue
 import tkinter as tk
 from tkinter import ttk
 import serial.tools.list_ports
@@ -10,7 +9,8 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from queue import Empty
 from src_processes import *
-from fourier import LAFCH, A
+import fourier
+import numpy as np
 
 
 class MainWindow(tk.Frame):
@@ -134,19 +134,19 @@ class MainWindow(tk.Frame):
         self.toolbar_lakh = NavigationToolbar2Tk(self.canvas_lakh, self.tab_lakh)
         self.toolbar_lakh.update()
         self.toolbar_lakh.pack(side='top')
-        self.line_lakh_amp, = self.ax1_lakh.plot(0, 0, label='Lm')
-        self.line_lakh_phase, = self.ax1_lakh.plot(0, 0, label="\u03C8")
+        # self.ax1_lakh.format_coord = self.make_format_lakh()
+        self.line_lakh_amp, = self.ax1_lakh.plot(0, 0, label='Lm', marker='.')
+        self.line_lakh_phase, = self.ax1_lakh.plot(0, 0, label="\u03C8", marker='.')
         self.fig_lakh.legend()
-        self.ax1_lakh.set_ylim(-180, 100)
-        self.ax1_lakh.set_xlim(-1, 3)
+        self.ax1_lakh.set_xticks(np.arange(-2, 5, step=1))
+        self.ax1_lakh.set_yticks(np.arange(-300, 300, step=20))
+        self.ax1_lakh.set_ylim(-180, 20)
+        self.ax1_lakh.set_xlim(-1, 2)
         plt.grid(b=True, which='major', axis='both')
         self.canvas_lakh.get_tk_widget().pack(side='top', fill='both', expand=True)
-        # self.lakh_animation = FuncAnimation(self.fig_lakh, self.lakh_animate, interval=80, blit=False)
-        # self.lakh_animation.pause()  # dont let the animation run. doesnt work?
-
         self.hertz_lakh_var = tk.StringVar()
-        # self.hertz_lakh_var.set("0.2, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 7, 8, 9, 10, 12, 14, 17, 20, 25")
-        self.hertz_lakh_var.set("1, 1.5, 2, 2.5, 3")  # укороченная тестовая программа
+        self.hertz_lakh_var.set("0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 7, 8, 9, 10, 12, 14, 17, 20, 25")
+        # self.hertz_lakh_var.set("1, 2, 5, 9, 12, 20")  # укороченная тестовая программа
         self.hertz_lakh_label = tk.Label(self.tab_lakh, text="Частоты [Гц]: ")
         self.hertz_lakh_entry = tk.Entry(self.tab_lakh, textvariable=self.hertz_lakh_var, width=70)
         self.hertz_lakh_label.pack(side='left', padx=10)
@@ -157,18 +157,18 @@ class MainWindow(tk.Frame):
         while self.main_queue.qsize():
             try:
                 buf = self.main_queue.get()
-                i+=1
-                #dict apprehension instead of append
+                i += 1
+                # dict apprehension instead of append
                 for key in buf.keys():
                     self.buffers[key].append(buf[key])
             except Empty:
-                #doesnt ever work with manager ques, ugh..
+                # doesnt ever work with manager ques, ugh..
                 print("empty que =(")
         print(f"Количество точек = {i}")
-        lah, lfh = LAFCH(self.buffers['OBJ'],
-                         self.buffers['COM'],
-                         self.buffers['Time COM'],
-                         self.buffers['Frequency'][0])
+        lah, lfh = fourier.LAFCH(self.buffers['OBJ'],
+                                 self.buffers['COM'],
+                                 self.buffers['Time COM'],
+                                 self.buffers['Frequency'][0])
         self.buffers['lah'].append(lah)
         self.buffers['lfh'].append(lfh)
         self.buffers['log_omega'].append(math.log10(self.buffers['Frequency'][0]))
@@ -179,54 +179,31 @@ class MainWindow(tk.Frame):
             if key not in ("lah", "lfh", "log_omega"):
                 self.buffers[key] = []
 
-    # def test(self):
-    #     self.line_lakh_amp.set_data([1,10],[50, -50])
-    #     self.line_lakh_phase = self.ax1_lakh.plot([1,10],[-50, 50])
-    #     plt.draw()
-    #     self.line_lakh_amp.set_data([10,20],[-50, 0])
-    #     self.line_lakh_phase = self.ax1_lakh.plot([10,20],[50, 0])
-    #     plt.draw()
+        # #test
+        # self.line_lakh_amp.set_data(self.buffers['Time COM'], self.buffers['COM'])
+        # self.line_lakh_phase.set_data(self.buffers['Time OBJ'], self.buffers['OBJ'])
+        # plt.draw()
 
-    # def lakh_animate(self, i):
-    #     if self.connected_flag.value == 0:
-    #         self.animation.pause()  # костыль без которого не ставится на паузу в начале почему-то
-    #         return
-    #     q_was_empty = True
-    #     i = 0
-    #     while self.main_queue.qsize():
-    #         q_was_empty = False
-    #         try:
-    #             buf = self.main_queue.get()
-    #             # dict apprehension instead of append
-    #             for key in buf.keys():
-    #                 self.buffers[key].append(buf[key])
-    #                 i+=1
-    #         except Empty:
-    #             print("empty que =(")
-    #     if not q_was_empty:
-    #         print(f"i = {i}")
-    #         lah, lfh = LAFCH(self.buffers['OBJ'], self.buffers['COM'], self.buffers['Time COM'], self.buffers['Frequency'][0])
-    #         self.buffers['lah'].append(lah)
-    #         self.buffers['lfh'].append(lfh)
-    #         self.buffers['log_omega'].append(math.log10(self.buffers['Frequency'][0]))
-    #         self.line_lakh_amp.set_data(self.buffers['log_omega'], self.buffers['lah'])
-    #         self.line_lakh_amp.set_data(self.buffers['log_omega'], self.buffers['lfh'])
-    #         for key in self.buffers.keys():
-    #             if key not in ("lah", "lfh", "log_omega"):
-    #                 self.buffers[key] = []
+        # test2
+        # t1,f1 = fourier.fourier(self.buffers['Time COM'], self.buffers['COM'], self.buffers['Frequency'][0])
+        # self.line_lakh_amp.set_data(t1, f1)
+        # self.line_lakh_phase.set_data(self.buffers['Time COM'], self.buffers['COM'])
+        # test2.2
+        # t1, f1 = fourier.fourier(self.buffers['Time OBJ'], self.buffers['OBJ'], self.buffers['Frequency'][0])
+        # self.line_lakh_amp.set_data(t1, f1)
+        # self.line_lakh_phase.set_data(self.buffers['Time OBJ'], self.buffers['OBJ'])
 
     def mode_combobox_modified(self):
         self.mode.value = self.mode_combobox.current()
 
     def hertz_callback(self, hertz_var):
-        global hertz
         d = re.match("(\d+(\.)?(\d+)?)", hertz_var.get())
         if d is not None:
             hertz_var.set(d.group(1))
-            hertz.value = float(d.group(1))
+            self.hertz.value = float(d.group(1))
         else:
             hertz_var.set('')
-            hertz.value = 0
+            self.hertz.value = 0
 
     def make_format(self, other, current):
         # current and other are axes
@@ -241,14 +218,21 @@ class MainWindow(tk.Frame):
 
         return format_coord
 
+    # def make_format_lakh(self):
+    #     # current and other are axes
+    #     def format_coord(x, y):
+    #         self.fig_lakh.
+    #         # x, y are data coordinates
+    #         hz = pow(10, x)
+    #         return ("В декадах: {:.0f},   в Гц: {:.0f},  y: {:.2f}".format(x, hz, y))
+    #
+    #     return format_coord
+
     def button_press(self):
-        selected_tab = self.tabControl.index("current")
         if self.button_connect["text"] == "Подключиться":
             self.connect()
-            self.tabControl.tab(not selected_tab, state='disabled')
         else:
             self.disconnect()
-            self.tabControl.tab(not selected_tab, state='normal')
 
     def animate(self, i):
         if self.connected_flag.value == 0:
@@ -273,13 +257,12 @@ class MainWindow(tk.Frame):
                 self.line_duty.set_data(self.buffers["Time COM"], self.buffers["Duty"])
                 self.line_dir.set_data(self.buffers["Time COM"], self.buffers["Dir"])
             except Empty:
-                #this doesnt work with manager que for some reason
+                # this doesnt work with manager que for some reason
                 print("empty que =(")
 
     def check_msg(self):
-        self.lock.acquire()
-        stop_flag = self.stop_flag.value
-        self.lock.release()
+        with self.lock:
+            stop_flag = self.stop_flag.value
         if stop_flag == 0:
             if self.msg_queue.empty() is False:
                 msg = self.msg_queue.get()
@@ -293,26 +276,25 @@ class MainWindow(tk.Frame):
 
     def connect(self):
         p = re.search("COM[0-9]+", self.COMbobox.get())
-        selected_tab = self.tabControl.index("current")
         if p:
+            selected_tab = self.tabControl.index("current")
+            self.tabControl.tab(not selected_tab, state='disabled')
             for key in self.buffers.keys():
                 self.buffers[key] = []
             com_port = p[0]
             self.label_status.configure(text='Подключение...')
             # АНИМАЦИЯ
             if selected_tab == 0:
-                self.lock.acquire()
-                self.stop_flag.value = 0
-                self.lock.release()
+                with self.lock:
+                    self.stop_flag.value = 0
                 print("process starting...")
                 self.reader_process = multiprocessing.Process(target=read_process, args=(
                     self.stop_flag, self.connected_flag, com_port, self.lock, self.main_queue, self.msg_queue,
                     self.hertz,
                     self.mode), daemon=True)
                 self.reader_process.start()
-                self.lock.acquire()
-                self.connected_flag.value = 1
-                self.lock.release()
+                with self.lock:
+                    self.connected_flag.value = 1
                 i = 0
                 while self.msg_queue.empty():
                     pass
@@ -336,20 +318,17 @@ class MainWindow(tk.Frame):
             elif selected_tab == 1:
                 frequencies = re.findall("(\d+[\.]?[\d+]?)", self.hertz_lakh_var.get())
                 frequencies = [float(f) for f in frequencies]
-                # frequencies = [1, 2, 3, 5]
                 # это место можно усовершенствовать. Нужно, чтобы строка искалась до запятой
                 print(frequencies)
-                self.lock.acquire()
-                self.stop_flag.value = 0
-                self.lock.release()
+                with self.lock:
+                    self.stop_flag.value = 0
                 print("lakh process starting...")
                 self.lakh_process = multiprocessing.Process(target=lakh_process, args=(
                     self.stop_flag, self.connected_flag, com_port, self.lock, self.main_queue, self.msg_queue,
                     frequencies), daemon=True)
                 self.lakh_process.start()
-                self.lock.acquire()
-                self.connected_flag.value = 1
-                self.lock.release()
+                with self.lock:
+                    self.connected_flag.value = 1
                 i = 0
                 while self.msg_queue.empty():
                     pass
@@ -367,19 +346,18 @@ class MainWindow(tk.Frame):
                     else:
                         self.label_status.configure(text=f'Подключено к {msg}')
                         self.button_connect.configure(text="Отключиться")
-                        # self.lakh_animation.resume()
                         self.check_msg()
 
     def disconnect(self):
         # этот спагетти код можно уменьшить
         selected_tab = self.tabControl.index("current")
+        self.tabControl.tab(not selected_tab, state='normal')
         if selected_tab == 0:
             try:
                 if self.reader_process is not None:
-                    self.lock.acquire()
-                    self.connected_flag.value = 0
-                    self.stop_flag.value = 1
-                    self.lock.release()
+                    with self.lock:
+                        self.connected_flag.value = 0
+                        self.stop_flag.value = 1
                     self.label_status.configure(text='Закрытие порта...')
                     self.reader_process.join()
                     print("process closed")
@@ -389,7 +367,6 @@ class MainWindow(tk.Frame):
                     while not self.msg_queue.empty():
                         self.msg_queue.get()
                     self.label_status.configure(text='Порт закрыт успешно')
-                    # self.animation.event_source.stop()
                     self.animation.pause()
             except Exception as e:
                 self.label_status.configure(text=e)
@@ -398,10 +375,9 @@ class MainWindow(tk.Frame):
         elif selected_tab == 1:
             try:
                 if self.lakh_process is not None:
-                    self.lock.acquire()
-                    self.connected_flag.value = 0
-                    self.stop_flag.value = 1
-                    self.lock.release()
+                    with self.lock:
+                        self.connected_flag.value = 0
+                        self.stop_flag.value = 1
                     self.label_status.configure(text='Закрытие порта...')
                     self.lakh_process.join()
                     print("lakh process closed")
@@ -418,6 +394,4 @@ class MainWindow(tk.Frame):
 
     def on_closing(self):
         self.disconnect()
-        # root.quit()
-        # root.destroy()
         self.quit()
