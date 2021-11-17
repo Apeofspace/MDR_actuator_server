@@ -134,7 +134,7 @@ class MainWindow(tk.Frame):
         self.toolbar_lakh = NavigationToolbar2Tk(self.canvas_lakh, self.tab_lakh)
         self.toolbar_lakh.update()
         self.toolbar_lakh.pack(side='top')
-        # self.ax1_lakh.format_coord = self.make_format_lakh()
+        self.ax1_lakh.format_coord = self.make_format_lakh()
         self.line_lakh_amp, = self.ax1_lakh.plot(0, 0, label='Lm', marker='.')
         self.line_lakh_phase, = self.ax1_lakh.plot(0, 0, label="\u03C8", marker='.')
         self.fig_lakh.legend()
@@ -151,6 +151,8 @@ class MainWindow(tk.Frame):
         self.hertz_lakh_entry = tk.Entry(self.tab_lakh, textvariable=self.hertz_lakh_var, width=70)
         self.hertz_lakh_label.pack(side='left', padx=10)
         self.hertz_lakh_entry.pack(side='left')
+        self.lakh_x = 0
+        self.lakh_y = 0
 
     def lakh_plot(self):
         i = 0
@@ -209,24 +211,41 @@ class MainWindow(tk.Frame):
         # current and other are axes
         def format_coord(x, y):
             # x, y are data coordinates
-            # convert to display coords
-            display_coord = current.transData.transform((x, y))
-            inv = other.transData.inverted()
-            # convert back to data coords with respect to ax
-            ax_coord = inv.transform(display_coord)
-            return ("Координата: {:.0f},   коэф. заполнения: {:.0f},   время: {:.2f}".format(ax_coord[1], y, x))
+            y_com = self.buffers["COM"]
+            y_obj = self.buffers["OBJ"]
+            y_duty = self.buffers["Duty"]
+            x_time = self.buffers['Time COM']
+            if len(x_time):
+                com = np.interp(x, x_time,y_com)
+                obj = np.interp(x, x_time,y_obj)
+                duty = np.interp(x, x_time,y_duty)
+                return ("Упр. сигнал: {:.0f},   вых. сигнал: {:.0f},   коэф. заполнения: {:.0f},   время: {:.2f}".format(com, obj, duty, y, x))
+            else:
+                # convert to display coords
+                display_coord = current.transData.transform((x, y))
+                inv = other.transData.inverted()
+                # convert back to data coords with respect to ax
+                ax_coord = inv.transform(display_coord)
+                return ("Координата: {:.0f},   коэф. заполнения: {:.0f},   время: {:.2f}".format(ax_coord[1], y, x))
 
         return format_coord
 
-    # def make_format_lakh(self):
-    #     # current and other are axes
-    #     def format_coord(x, y):
-    #         self.fig_lakh.
-    #         # x, y are data coordinates
-    #         hz = pow(10, x)
-    #         return ("В декадах: {:.0f},   в Гц: {:.0f},  y: {:.2f}".format(x, hz, y))
-    #
-    #     return format_coord
+    def make_format_lakh(self,):
+        # current and other are axes
+        def format_coord(x, y):
+            # x, y are data coordinates
+            y_lah= self.buffers["lah"]
+            y_lfh = self.buffers["lfh"]
+            x_log_omega= self.buffers['log_omega']
+            hz = pow(10, x)
+            if len(y_lah):
+                lm = np.interp(x, x_log_omega,y_lah)
+                ksi = np.interp(x, x_log_omega,y_lfh)
+                return ("В декадах: {:.2f},   в Гц: {:.2f},  Lm: {:.0f},  \u03C8: {:.1f}".format(x, hz, lm, ksi))
+            else:
+                return ("В декадах: {:.2f},   в Гц: {:.2f},  y: {:.1f}}".format(x, hz, y))
+
+        return format_coord
 
     def button_press(self):
         if self.button_connect["text"] == "Подключиться":
