@@ -36,14 +36,12 @@ def fourier(t, F, f):
 def abs_W(Ain, Bin, Aout, Bout):
     """Отношение амплитуд на одной частоте"""
     return 20 * log10(sqrt((pow(Aout, 2) + pow(Bout, 2)) / (pow(Ain, 2) + pow(Bin, 2))))
-    # return 20 * log10(sqrt((pow(Ain, 2) + pow(Bin, 2)) / (pow(Aout, 2) + pow(Bout, 2))))
 
 
 def ksi(Ain, Bin, Aout, Bout):
     """Фаза на частоте (градусы)
     аргументы: """
-    ksi = (-atan(Bout / Aout) + atan(Bin / Ain) - pi) * 180 / pi
-    # ksi = (atan(Ain / Bin) - atan(Aout / Bout)) * 180 / pi
+    ksi = -(atan(Ain / Bin) - atan(Aout / Bout)) * 180 / pi
     print(f"Запаздывание = {ksi}")
     return ksi
 

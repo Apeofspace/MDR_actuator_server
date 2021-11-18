@@ -76,7 +76,6 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
                         first_time=True
                     #страшный ужасающий костыль (это все должно быть под период == 4)
                     #но в этом случае процесс выполняется слишком быстро и виснет
-                    wtftime = time.perf_counter()
                     line = ser.read(size=28)
                     if first_time:
                         initial_com_time = float(int.from_bytes(line[4:12], "little")) / 80000000

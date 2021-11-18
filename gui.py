@@ -152,7 +152,7 @@ class MainWindow(tk.Frame):
         self.init_lakh_plot()
         # frequencies
         self.hertz_lakh_var = tk.StringVar()
-        self.hertz_lakh_var.set("0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 7, 8, 9, 10, 12, 14, 17, 20, 25")
+        self.hertz_lakh_var.set("0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 7, 8, 9, 10, 12, 14, 17, 20, 25, 30")
         # self.hertz_lakh_var.set("1, 2, 5, 9, 12, 20")  # укороченная тестовая программа
         # self.hertz_lakh_var.set("1, 6, 9, 12")  # максимально укороченная тестовая программа
         self.hertz_lakh_label = tk.Label(self.tab_lakh, text="Частоты [Гц]: ")
@@ -197,15 +197,15 @@ class MainWindow(tk.Frame):
 
         offset_time_buffer = [t + self.lakh_time_offset for t in self.buffers['Time COM']]
         line_lakh_com = self.ax2_lakh.plot(offset_time_buffer, self.buffers['COM'],
-                                                color=u'#1f77b4')
+                                           color=u'#1f77b4')
         line_lakh_obj = self.ax2_lakh.plot(offset_time_buffer, self.buffers['OBJ'],
-                                                color=u'#ff7f0e')
+                                           color=u'#ff7f0e')
         line_lakh_duty = self.ax2_lakh.plot(offset_time_buffer, self.buffers['Duty'],
-                                                 color='green', linewidth=0.5)
+                                            color='green', linewidth=0.5)
         lakh_line_lin_com = self.ax2_lakh.plot(offset_time_buffer, fourier.fourier(self.buffers['Time COM'],
                                                                                    self.buffers['COM'],
                                                                                    self.buffers['Frequency'][0])
-                                               ,color="pink", linewidth=0.5)
+                                               , color="pink", linewidth=0.5)
         lakh_line_lin_obj = self.ax2_lakh.plot(offset_time_buffer, fourier.fourier(self.buffers['Time COM'],
                                                                                    self.buffers['OBJ'],
                                                                                    self.buffers['Frequency'][0])
@@ -256,7 +256,7 @@ class MainWindow(tk.Frame):
                 inv = other.transData.inverted()
                 # convert back to data coords with respect to ax
                 ax_coord = inv.transform(display_coord)
-                return ("Координата: {:.0f},   коэф. заполнения: {:.0f},   время: {:.2f}".format(ax_coord[1], y, x))
+                return "Координата: {:.0f},   коэф. заполнения: {:.0f},   время: {:.2f}".format(ax_coord[1], y, x)
 
         return format_coord
 
@@ -271,9 +271,9 @@ class MainWindow(tk.Frame):
             if len(y_lah):
                 lm = np.interp(x, x_log_omega, y_lah)
                 ksi = np.interp(x, x_log_omega, y_lfh)
-                return ("В декадах: {:.2f},   в Гц: {:.2f},  Lm: {:.1f},  \u03C8: {:.1f}".format(x, hz, lm, ksi))
+                return "В декадах: {:.2f},   в Гц: {:.2f},  Lm: {:.1f},  \u03C8: {:.1f}".format(x, hz, lm, ksi)
             else:
-                return ("В декадах: {:.2f},   в Гц: {:.2f},  y: {:.1f}}".format(x, hz, y))
+                return "В декадах: {:.2f},   в Гц: {:.2f},  y: {:.1f}}".format(x, hz, y)
 
         return format_coord
 
@@ -293,8 +293,9 @@ class MainWindow(tk.Frame):
                 for key in buf.keys():
                     self.buffers[key].append(buf[key])
                 if len(self.buffers["Time COM"]) > self.buffer_size:
-                    for value in self.buffers.values():
-                        value.pop(0)
+                    for list in self.buffers.values():
+                        if len(list):
+                            list.pop(0)
                 if len(self.buffers["Time COM"]) > self.show_on_plot:
                     self.ax1_anim.set_xlim(self.buffers["Time COM"][-self.show_on_plot], self.buffers["Time COM"][-1])
                 elif len(self.buffers["Time COM"]) > 1:
