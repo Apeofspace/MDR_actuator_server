@@ -28,6 +28,7 @@ class MainWindow(tk.Frame):
         self.buffer_size = 15000
         self.show_on_plot = 2000
         self.lakh_time_offset = 0
+        self.lakh_stripe = True
         buffer_names = ['Time COM',
                         'COM',
                         'Time OBJ',
@@ -207,28 +208,18 @@ class MainWindow(tk.Frame):
                                                                                    self.buffers['OBJ'],
                                                                                    self.buffers['Frequency'][0])
                                                , color="purple", linewidth=0.5)
-        self.ax2_lakh.text(self.lakh_time_offset+self.buffers['Time COM'][-1]/2, 3800,
+        self.ax2_lakh.text(self.lakh_time_offset, 3800,
                            s=f"{self.buffers['Frequency'][0]} Гц", fontsize='small', fontstretch='semi-condensed',
-                           fontweight='ultralight')
+                           fontweight='ultralight', clip_on=True)
+        self.lakh_stripe = not self.lakh_stripe
+        if self.lakh_stripe:
+            self.ax2_lakh.bar(self.lakh_time_offset, width=self.buffers['Time COM'][-1], align='edge',
+                              height=4100, color=u'#e3e3e3')
         self.lakh_time_offset += self.buffers['Time COM'][-1]
         plt.draw()
         for key in self.buffers.keys():
             if key not in ("lah", "lfh", "log_omega"):
                 self.buffers[key] = []
-
-        # #test
-        # self.line_lakh_amp.set_data(self.buffers['Time COM'], self.buffers['COM'])
-        # self.line_lakh_phase.set_data(self.buffers['Time OBJ'], self.buffers['OBJ'])
-        # plt.draw()
-
-        # test2
-        # t1,f1 = fourier.fourier(self.buffers['Time COM'], self.buffers['COM'], self.buffers['Frequency'][0])
-        # self.line_lakh_amp.set_data(t1, f1)
-        # self.line_lakh_phase.set_data(self.buffers['Time COM'], self.buffers['COM'])
-        # test2.2
-        # t1, f1 = fourier.fourier(self.buffers['Time OBJ'], self.buffers['OBJ'], self.buffers['Frequency'][0])
-        # self.line_lakh_amp.set_data(t1, f1)
-        # self.line_lakh_phase.set_data(self.buffers['Time OBJ'], self.buffers['OBJ'])
 
     def mode_combobox_modified(self):
         self.mode.value = self.mode_combobox.current()
