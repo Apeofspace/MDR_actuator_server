@@ -207,6 +207,9 @@ class MainWindow(tk.Frame):
                                                                                    self.buffers['OBJ'],
                                                                                    self.buffers['Frequency'][0])
                                                , color="purple", linewidth=0.5)
+        self.ax2_lakh.text(self.lakh_time_offset+self.buffers['Time COM'][-1]/2, 3800,
+                           s=f"{self.buffers['Frequency'][0]} Гц", fontsize='small', fontstretch='semi-condensed',
+                           fontweight='ultralight')
         self.lakh_time_offset += self.buffers['Time COM'][-1]
         plt.draw()
         for key in self.buffers.keys():
@@ -275,7 +278,7 @@ class MainWindow(tk.Frame):
             if len(y_lah):
                 lm = np.interp(x, x_log_omega, y_lah)
                 ksi = np.interp(x, x_log_omega, y_lfh)
-                return ("В декадах: {:.2f},   в Гц: {:.2f},  Lm: {:.0f},  \u03C8: {:.1f}".format(x, hz, lm, ksi))
+                return ("В декадах: {:.2f},   в Гц: {:.2f},  Lm: {:.1f},  \u03C8: {:.1f}".format(x, hz, lm, ksi))
             else:
                 return ("В декадах: {:.2f},   в Гц: {:.2f},  y: {:.1f}}".format(x, hz, y))
 
@@ -318,7 +321,7 @@ class MainWindow(tk.Frame):
             if self.msg_queue.empty() is False:
                 msg = self.msg_queue.get()
                 if msg == "draw":
-                    print("time to draw!")
+                    # print("time to draw!")
                     self.lakh_plot()
                 else:
                     self.disconnect()
@@ -341,8 +344,7 @@ class MainWindow(tk.Frame):
                 print("process starting...")
                 self.reader_process = multiprocessing.Process(target=read_process, args=(
                     self.stop_flag, self.connected_flag, com_port, self.lock, self.main_queue, self.msg_queue,
-                    self.hertz,
-                    self.mode), daemon=True)
+                    self.hertz, self.mode), daemon=True)
                 self.reader_process.start()
                 with self.lock:
                     self.connected_flag.value = 1

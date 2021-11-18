@@ -26,9 +26,9 @@ def A0(F):
 def fourier(t, F, f):
     """Создание списка F для построения ряда Фурье
     Аргументы: массив времени, частота, коэффициенты"""
-    A_0=A0(F)
-    A1=A(F,t,f, 1)
-    B1=B(F,t,f, 1)
+    A_0 = A0(F)
+    A1 = A(F, t, f, 1)
+    B1 = B(F, t, f, 1)
     F = [A_0 / 2 + A1 * cos(2 * pi * f * t[i]) + B1 * sin(2 * pi * f * t[i]) for i in range(len(t))]
     return F
 
@@ -38,13 +38,15 @@ def abs_W(Ain, Bin, Aout, Bout):
     return 20 * log10(sqrt((pow(Aout, 2) + pow(Bout, 2)) / (pow(Ain, 2) + pow(Bin, 2))))
     # return 20 * log10(sqrt((pow(Ain, 2) + pow(Bin, 2)) / (pow(Aout, 2) + pow(Bout, 2))))
 
+
 def ksi(Ain, Bin, Aout, Bout):
     """Фаза на частоте (градусы)
     аргументы: """
-    ksi =  (-atan(Bout / Aout) + atan(Bin / Ain) - pi) * 180 / pi
+    ksi = (-atan(Bout / Aout) + atan(Bin / Ain) - pi) * 180 / pi
     # ksi = (atan(Ain / Bin) - atan(Aout / Bout)) * 180 / pi
     print(f"Запаздывание = {ksi}")
     return ksi
+
 
 def LAFCH(Out, In, t, f):
     """Считает ЛАФЧХ для каждой отдельной частоты"""
