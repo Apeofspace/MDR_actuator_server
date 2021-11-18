@@ -137,8 +137,7 @@ class MainWindow(tk.Frame):
         self.toolbar_lakh.update()
         self.toolbar_lakh.pack(side='top')
         self.ax1_lakh.format_coord = self.make_format_lakh()
-
-        #lines
+        # lines
         self.line_lakh_amp, = self.ax1_lakh.plot(0, 0, label='Lm', marker='.')
         self.line_lakh_phase, = self.ax1_lakh.plot(0, 0, label="\u03C8", marker='.')
         # self.line_lakh_com, = self.ax2_lakh.plot(0, 0, label="Управляющий сигнал")
@@ -150,16 +149,7 @@ class MainWindow(tk.Frame):
         # self.line_lakh_linearized_obj = self.ax2_lakh.plot(0, 0, label="Лин. знач. с пот.", linewidth=0.5,
         #                                                    color='red')
         # visuals
-        self.ax1_lakh.set_xticks(np.arange(-2, 5, step=1))
-        self.ax1_lakh.set_yticks(np.arange(-300, 300, step=20))
-        self.ax1_lakh.set_ylim(-180, 20)
-        self.ax1_lakh.set_xlim(-1, 2)
-        self.ax2_lakh.set_ylim(0, 4100)
-        self.ax1_lakh.grid(b=True, which='major', axis='both')
-        self.ax2_lakh.grid(b=True, which='major', axis='both')
-        self.ax1_lakh.legend(fontsize='small')
-        # self.ax2_lakh.legend(fontsize='small')
-
+        self.init_lakh_plot()
         # frequencies
         self.hertz_lakh_var = tk.StringVar()
         self.hertz_lakh_var.set("0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 7, 8, 9, 10, 12, 14, 17, 20, 25")
@@ -169,6 +159,18 @@ class MainWindow(tk.Frame):
         self.hertz_lakh_entry = tk.Entry(self.tab_lakh, textvariable=self.hertz_lakh_var, width=70)
         self.hertz_lakh_label.pack(side='left', padx=10)
         self.hertz_lakh_entry.pack(side='left')
+
+    def init_lakh_plot(self):
+        self.ax2_lakh.clear()
+        self.ax1_lakh.set_xticks(np.arange(-2, 5, step=1))
+        self.ax1_lakh.set_yticks(np.arange(-300, 300, step=20))
+        self.ax1_lakh.set_ylim(-180, 20)
+        self.ax1_lakh.set_xlim(-1, 2)
+        self.ax2_lakh.set_ylim(0, 4100)
+        self.ax1_lakh.grid(b=True, which='major', axis='both')
+        self.ax2_lakh.grid(b=True, which='major', axis='both')
+        self.ax1_lakh.legend(fontsize='small')
+        # self.ax2_lakh.legend(fontsize='small')
 
     def lakh_plot(self):
         i = 0
@@ -360,6 +362,7 @@ class MainWindow(tk.Frame):
                         self.check_msg()
             # ЛАХИ
             elif selected_tab == 1:
+                self.init_lakh_plot()
                 self.lakh_time_offset = 0
                 frequencies = re.findall("(\d+[\.]?[\d+]?)", self.hertz_lakh_var.get())
                 frequencies = [float(f) for f in frequencies]
