@@ -27,6 +27,7 @@ class MainWindow(tk.Frame):
         self.mode = mode
         self.buffer_size = 15000
         self.show_on_plot = 2000
+        self.lakh_time_offset = 0
         buffer_names = ['Time COM',
                         'COM',
                         'Time OBJ',
@@ -71,13 +72,12 @@ class MainWindow(tk.Frame):
 
     def draw_animation_tab(self):
         # ANIMATION
-        # self.tab_animation.pack(side='top', padx=10, fill='both', expand=True)
-        self.fig_anim, self.ax1_anim = plt.subplots(figsize=(10, 5), tight_layout=True)
+        self.fig_anim, self.ax1_anim = plt.subplots(figsize=(12, 6), tight_layout=True)
         self.canvas_anim = FigureCanvasTkAgg(self.fig_anim, master=self.tab_animation)
         self.toolbar_anim = NavigationToolbar2Tk(self.canvas_anim, self.tab_animation)
         self.toolbar_anim.update()
         self.toolbar_anim.pack(side='top')
-        plt.grid(b=True, which='major', axis='both')
+        plt.grid(b=True, which='major', axis='both')  # grid can be done thro axes.grid
         self.ax2_anim = self.ax1_anim.twinx()
         self.ax2_anim.format_coord = self.make_format(self.ax1_anim, self.ax2_anim)
         self.line_duty, = self.ax2_anim.plot(0, 0, label='Коэффициент заполнения',
@@ -86,7 +86,7 @@ class MainWindow(tk.Frame):
                                             color='red', linewidth=0.5)
         self.line_COM, = self.ax1_anim.plot(0, 0, label='Управляющий сигнал')
         self.line_OBJ, = self.ax1_anim.plot(0, 0, label='Значение с потенциометра')
-        self.fig_anim.legend()
+        self.fig_anim.legend(fontsize='small')
         self.ax1_anim.set_ylim(0, 4100)
         self.ax2_anim.set_ylim(0, 4100)
         self.canvas_anim.get_tk_widget().pack(side='top', fill='both', expand=True)
@@ -129,30 +129,45 @@ class MainWindow(tk.Frame):
         self.label_status.pack(side='left', padx=5, fill='x')
 
     def draw_lakh_tab(self):
-        self.fig_lakh, self.ax1_lakh = plt.subplots(figsize=(10, 5), tight_layout=True)
+        self.fig_lakh, (self.ax2_lakh, self.ax1_lakh) = plt.subplots(nrows=2, figsize=(12, 6), tight_layout=True)
         self.canvas_lakh = FigureCanvasTkAgg(self.fig_lakh, master=self.tab_lakh)
+        self.canvas_lakh.get_tk_widget().pack(side='top', fill='both', expand=True)
         self.toolbar_lakh = NavigationToolbar2Tk(self.canvas_lakh, self.tab_lakh)
         self.toolbar_lakh.update()
         self.toolbar_lakh.pack(side='top')
         self.ax1_lakh.format_coord = self.make_format_lakh()
+
+        #lines
         self.line_lakh_amp, = self.ax1_lakh.plot(0, 0, label='Lm', marker='.')
         self.line_lakh_phase, = self.ax1_lakh.plot(0, 0, label="\u03C8", marker='.')
-        self.fig_lakh.legend()
+        # self.line_lakh_com, = self.ax2_lakh.plot(0, 0, label="Управляющий сигнал")
+        # self.line_lakh_obj, = self.ax2_lakh.plot(0, 0, label="Значение с потенциометра")
+        # self.line_lakh_duty, = self.ax2_lakh.plot(0, 0, label="Коэффициент заполнения",
+        #                                           color='green', linewidth=0.5)
+        # self.line_lakh_linearized_com = self.ax2_lakh.plot(0, 0, label="Лин. упр. сигнал", linewidth=0.5,
+        #                                                    color='darkblue')
+        # self.line_lakh_linearized_obj = self.ax2_lakh.plot(0, 0, label="Лин. знач. с пот.", linewidth=0.5,
+        #                                                    color='red')
+        # visuals
         self.ax1_lakh.set_xticks(np.arange(-2, 5, step=1))
         self.ax1_lakh.set_yticks(np.arange(-300, 300, step=20))
         self.ax1_lakh.set_ylim(-180, 20)
         self.ax1_lakh.set_xlim(-1, 2)
-        plt.grid(b=True, which='major', axis='both')
-        self.canvas_lakh.get_tk_widget().pack(side='top', fill='both', expand=True)
+        self.ax2_lakh.set_ylim(0, 4100)
+        self.ax1_lakh.grid(b=True, which='major', axis='both')
+        self.ax2_lakh.grid(b=True, which='major', axis='both')
+        self.ax1_lakh.legend(fontsize='small')
+        # self.ax2_lakh.legend(fontsize='small')
+
+        # frequencies
         self.hertz_lakh_var = tk.StringVar()
         self.hertz_lakh_var.set("0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 7, 8, 9, 10, 12, 14, 17, 20, 25")
         # self.hertz_lakh_var.set("1, 2, 5, 9, 12, 20")  # укороченная тестовая программа
+        # self.hertz_lakh_var.set("1, 6, 9, 12")  # максимально укороченная тестовая программа
         self.hertz_lakh_label = tk.Label(self.tab_lakh, text="Частоты [Гц]: ")
         self.hertz_lakh_entry = tk.Entry(self.tab_lakh, textvariable=self.hertz_lakh_var, width=70)
         self.hertz_lakh_label.pack(side='left', padx=10)
         self.hertz_lakh_entry.pack(side='left')
-        self.lakh_x = 0
-        self.lakh_y = 0
 
     def lakh_plot(self):
         i = 0
@@ -176,6 +191,23 @@ class MainWindow(tk.Frame):
         self.buffers['log_omega'].append(math.log10(self.buffers['Frequency'][0]))
         self.line_lakh_amp.set_data(self.buffers['log_omega'], self.buffers['lah'])
         self.line_lakh_phase.set_data(self.buffers['log_omega'], self.buffers['lfh'])
+
+        offset_time_buffer = [t + self.lakh_time_offset for t in self.buffers['Time COM']]
+        line_lakh_com = self.ax2_lakh.plot(offset_time_buffer, self.buffers['COM'],
+                                                color=u'#1f77b4')
+        line_lakh_obj = self.ax2_lakh.plot(offset_time_buffer, self.buffers['OBJ'],
+                                                color=u'#ff7f0e')
+        line_lakh_duty = self.ax2_lakh.plot(offset_time_buffer, self.buffers['Duty'],
+                                                 color='green', linewidth=0.5)
+        lakh_line_lin_com = self.ax2_lakh.plot(offset_time_buffer, fourier.fourier(self.buffers['Time COM'],
+                                                                                   self.buffers['COM'],
+                                                                                   self.buffers['Frequency'][0])
+                                               ,color="pink", linewidth=0.5)
+        lakh_line_lin_obj = self.ax2_lakh.plot(offset_time_buffer, fourier.fourier(self.buffers['Time COM'],
+                                                                                   self.buffers['OBJ'],
+                                                                                   self.buffers['Frequency'][0])
+                                               , color="purple", linewidth=0.5)
+        self.lakh_time_offset += self.buffers['Time COM'][-1]
         plt.draw()
         for key in self.buffers.keys():
             if key not in ("lah", "lfh", "log_omega"):
@@ -216,10 +248,12 @@ class MainWindow(tk.Frame):
             y_duty = self.buffers["Duty"]
             x_time = self.buffers['Time COM']
             if len(x_time):
-                com = np.interp(x, x_time,y_com)
-                obj = np.interp(x, x_time,y_obj)
-                duty = np.interp(x, x_time,y_duty)
-                return ("Упр. сигнал: {:.0f},   вых. сигнал: {:.0f},   коэф. заполнения: {:.0f},   время: {:.2f}".format(com, obj, duty, y, x))
+                com = np.interp(x, x_time, y_com)
+                obj = np.interp(x, x_time, y_obj)
+                duty = np.interp(x, x_time, y_duty)
+                return (
+                    "Упр. сигнал: {:.0f},   вых. сигнал: {:.0f},   коэф. заполнения: {:.0f},   время: {:.2f}".format(
+                        com, obj, duty, y, x))
             else:
                 # convert to display coords
                 display_coord = current.transData.transform((x, y))
@@ -230,17 +264,17 @@ class MainWindow(tk.Frame):
 
         return format_coord
 
-    def make_format_lakh(self,):
+    def make_format_lakh(self):
         # current and other are axes
         def format_coord(x, y):
             # x, y are data coordinates
-            y_lah= self.buffers["lah"]
+            y_lah = self.buffers["lah"]
             y_lfh = self.buffers["lfh"]
-            x_log_omega= self.buffers['log_omega']
+            x_log_omega = self.buffers['log_omega']
             hz = pow(10, x)
             if len(y_lah):
-                lm = np.interp(x, x_log_omega,y_lah)
-                ksi = np.interp(x, x_log_omega,y_lfh)
+                lm = np.interp(x, x_log_omega, y_lah)
+                ksi = np.interp(x, x_log_omega, y_lfh)
                 return ("В декадах: {:.2f},   в Гц: {:.2f},  Lm: {:.0f},  \u03C8: {:.1f}".format(x, hz, lm, ksi))
             else:
                 return ("В декадах: {:.2f},   в Гц: {:.2f},  y: {:.1f}}".format(x, hz, y))
@@ -260,8 +294,6 @@ class MainWindow(tk.Frame):
         while self.main_queue.qsize():
             try:
                 buf = self.main_queue.get()
-                # for key in self.buffers.keys():
-                #     self.buffers[key].append(buf[key])
                 for key in buf.keys():
                     self.buffers[key].append(buf[key])
                 if len(self.buffers["Time COM"]) > self.buffer_size:
@@ -335,6 +367,7 @@ class MainWindow(tk.Frame):
                         self.check_msg()
             # ЛАХИ
             elif selected_tab == 1:
+                self.lakh_time_offset = 0
                 frequencies = re.findall("(\d+[\.]?[\d+]?)", self.hertz_lakh_var.get())
                 frequencies = [float(f) for f in frequencies]
                 # это место можно усовершенствовать. Нужно, чтобы строка искалась до запятой
