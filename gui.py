@@ -188,7 +188,7 @@ class MainWindow(tk.Frame):
         lah, lfh = fourier.LAFCH(self.buffers['OBJ'],
                                  self.buffers['COM'],
                                  self.buffers['Time COM'],
-                                 self.buffers['Frequency'][0])
+                                 self.buffers['Frequency'][0], T_count=2)
         self.buffers['lah'].append(lah)
         self.buffers['lfh'].append(lfh)
         self.buffers['log_omega'].append(math.log10(self.buffers['Frequency'][0]))
@@ -204,12 +204,15 @@ class MainWindow(tk.Frame):
                                             color='green', linewidth=0.5)
         lakh_line_lin_com = self.ax2_lakh.plot(offset_time_buffer, fourier.fourier(self.buffers['Time COM'],
                                                                                    self.buffers['COM'],
-                                                                                   self.buffers['Frequency'][0])
+                                                                                   self.buffers['Frequency'][0],
+                                                                                   T_count=2)
                                                , color="pink", linewidth=0.5)
         lakh_line_lin_obj = self.ax2_lakh.plot(offset_time_buffer, fourier.fourier(self.buffers['Time COM'],
                                                                                    self.buffers['OBJ'],
-                                                                                   self.buffers['Frequency'][0])
+                                                                                   self.buffers['Frequency'][0],
+                                                                                   T_count=2)
                                                , color="purple", linewidth=0.5)
+        print(f'about to put text on freq = {self.buffers["Frequency"][0]} Hz')
         self.ax2_lakh.text(self.lakh_time_offset, 3800,
                            s=f"{self.buffers['Frequency'][0]} Гц", fontsize='small', fontstretch='semi-condensed',
                            fontweight='ultralight', clip_on=True)

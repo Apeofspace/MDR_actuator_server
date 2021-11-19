@@ -2,17 +2,19 @@ from math import sin, cos, pi, sqrt, pow, atan, log10
 
 
 # коэффициенты ряда Фурье
-def A(F, t, f, k=1):
+def A(F, t, f, T_count =1, k=1):
     """аргументы: функция (массив точек), время(массив точек),
     частота, количество точек в периоде, номер гармоники"""
     n = len(F)
+    # return (2 / n) * sum([F[i] * cos(t[i] * 2 * pi * f * k * T_count) for i in range(n)])
     return (2 / n) * sum([F[i] * cos(t[i] * 2 * pi * f * k) for i in range(n)])
 
 
-def B(F, t, f, k=1):
+def B(F, t, f, T_count=1, k=1):
     """аргументы: функция (массив точек), время(массив точек),
     частота, количество точек в периоде, номер гармоники"""
     n = len(F)
+    # return 2 / n * sum([F[i] * sin(2 * pi * f * k * T_count * t[i]) for i in range(n)])
     return 2 / n * sum([F[i] * sin(2 * pi * f * k * t[i]) for i in range(n)])
 
 
@@ -23,12 +25,13 @@ def A0(F):
 
 
 # Разложение в ряд Фурье
-def fourier(t, F, f):
+def fourier(t, F, f, T_count=1):
     """Создание списка F для построения ряда Фурье
     Аргументы: массив времени, частота, коэффициенты"""
     A_0 = A0(F)
     A1 = A(F, t, f, 1)
     B1 = B(F, t, f, 1)
+    # F = [A_0 / 2 + A1 * cos(2 * pi * f * t[i] * T_count) + B1 * sin(2 * pi * f * t[i]* T_count) for i in range(len(t))]
     F = [A_0 / 2 + A1 * cos(2 * pi * f * t[i]) + B1 * sin(2 * pi * f * t[i]) for i in range(len(t))]
     return F
 
@@ -46,12 +49,12 @@ def ksi(Ain, Bin, Aout, Bout):
     return ksi
 
 
-def LAFCH(Out, In, t, f):
+def LAFCH(Out, In, t, f, T_count=1):
     """Считает ЛАФЧХ для каждой отдельной частоты"""
-    Ain = A(In, t, f)
-    Bin = B(In, t, f)
-    Aout = A(Out, t, f)
-    Bout = B(Out, t, f)
+    Ain = A(In, t, f, T_count=T_count)
+    Bin = B(In, t, f, T_count=T_count)
+    Aout = A(Out, t, f, T_count=T_count)
+    Bout = B(Out, t, f, T_count=T_count)
     return [abs_W(Ain, Bin, Aout, Bout), ksi(Ain, Bin, Aout, Bout)]
 
 
