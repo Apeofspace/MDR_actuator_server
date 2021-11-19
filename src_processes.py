@@ -19,7 +19,7 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
     periods_to_rec = (3, 4)
     frequency_to_change_periods = 6
     periods_to_use2 = 12
-    periods_to_rec2 = 10
+    periods_to_rec2 = (10, 11)
     try:
         number_of_frequencies = len(frequencies)
         if number_of_frequencies == 0:
