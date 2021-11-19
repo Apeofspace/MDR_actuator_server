@@ -184,7 +184,7 @@ class MainWindow(tk.Frame):
             except Empty:
                 # doesnt ever work with manager ques, ugh..
                 print("empty que =(")
-        print(f"Количество точек = {i}")
+        print(f"\nЧастота = {self.buffers['Frequency'][0]}\nКоличество точек = {i}")
         lah, lfh = fourier.LAFCH(self.buffers['OBJ'],
                                  self.buffers['COM'],
                                  self.buffers['Time COM'],
@@ -367,7 +367,7 @@ class MainWindow(tk.Frame):
                 self.init_lakh_plot()
                 self.lakh_time_offset = 0
                 frequencies = re.findall("(\d+[\.]?[\d+]?)", self.hertz_lakh_var.get())
-                frequencies = [float(f) for f in frequencies]
+                frequencies = sorted([float(f) for f in frequencies])
                 # это место можно усовершенствовать. Нужно, чтобы строка искалась до запятой
                 print(frequencies)
                 with self.lock:

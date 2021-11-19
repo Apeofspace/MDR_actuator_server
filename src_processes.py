@@ -54,12 +54,12 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
                         # переход на следующую частоту
                         msg_queue.put("draw")  # !!сообщение о том, что очередь заполнена!!
                         if current_frequency_index == number_of_frequencies - 1:
-                            print('Конец эксперимента')
+                            # print('Конец эксперимента')
                             msg_queue.put("Конец эксперимента")
                             return  # закончен эксперимент
                         current_frequency_index += 1
                         current_frequency = frequencies[current_frequency_index]
-                        print(f'Новая частота: {current_frequency}')
+                        # print(f'Новая частота: {current_frequency}')
                         period = 0
                         if current_frequency > frequency_to_change_periods:  # смена количества периодов
                             periods_to_use = periods_to_use2

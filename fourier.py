@@ -45,7 +45,7 @@ def ksi(Ain, Bin, Aout, Bout):
     """Фаза на частоте (градусы)
     аргументы: """
     ksi = -(atan(Ain / Bin) - atan(Aout / Bout)) * 180 / pi
-    print(f"Запаздывание = {ksi}")
+    print(f"Запаздывание = {ksi}\nAin = {Ain} Bin = {Bin} Aout = {Aout} Bout = {Bout}\natan(Ain / Bin) = {atan(Ain / Bin)}\natan(Aout / Bout) = {atan(Aout / Bout)}")
     return ksi
 
 
