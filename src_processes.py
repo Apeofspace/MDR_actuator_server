@@ -73,9 +73,9 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
                         # обнаружена смена периода
                         kold = k
                         # print(f'Новый период {period}')
-                        period += 1
                         if period not in periods_to_rec:
                             first_time = True
+                        period += 1
                     # страшный ужасающий костыль (это все должно быть под период == 4)
                     # но в этом случае процесс выполняется слишком быстро и виснет
                     line = ser.read(size=28)

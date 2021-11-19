@@ -75,6 +75,7 @@ class MainWindow(tk.Frame):
         # ANIMATION
         self.fig_anim, self.ax1_anim = plt.subplots(figsize=(12, 6), tight_layout=True)
         self.canvas_anim = FigureCanvasTkAgg(self.fig_anim, master=self.tab_animation)
+        self.canvas_anim.get_tk_widget().pack(side='top', fill='both', expand=True)
         self.toolbar_anim = NavigationToolbar2Tk(self.canvas_anim, self.tab_animation)
         self.toolbar_anim.update()
         self.toolbar_anim.pack(side='top')
@@ -90,7 +91,6 @@ class MainWindow(tk.Frame):
         self.fig_anim.legend(fontsize='small')
         self.ax1_anim.set_ylim(0, 4100)
         self.ax2_anim.set_ylim(0, 4100)
-        self.canvas_anim.get_tk_widget().pack(side='top', fill='both', expand=True)
         self.animation = FuncAnimation(self.fig_anim, self.animate, interval=16, blit=False)
         self.animation.pause()  # dont let the animation run. doesnt work?
         plt.xlabel("[мс]")
@@ -188,13 +188,13 @@ class MainWindow(tk.Frame):
         lah, lfh = fourier.LAFCH(self.buffers['OBJ'],
                                  self.buffers['COM'],
                                  self.buffers['Time COM'],
-                                 self.buffers['Frequency'][0], T_count=2)
+                                 self.buffers['Frequency'][0])
         self.buffers['lah'].append(lah)
         self.buffers['lfh'].append(lfh)
         self.buffers['log_omega'].append(math.log10(self.buffers['Frequency'][0]))
         self.line_lakh_amp.set_data(self.buffers['log_omega'], self.buffers['lah'])
         self.line_lakh_phase.set_data(self.buffers['log_omega'], self.buffers['lfh'])
-
+        print(f'time offset is {self.lakh_time_offset} on frequency {self.buffers["Frequency"][0]}')
         offset_time_buffer = [t + self.lakh_time_offset for t in self.buffers['Time COM']]
         line_lakh_com = self.ax2_lakh.plot(offset_time_buffer, self.buffers['COM'],
                                            color=u'#1f77b4')
@@ -204,15 +204,13 @@ class MainWindow(tk.Frame):
                                             color='green', linewidth=0.5)
         lakh_line_lin_com = self.ax2_lakh.plot(offset_time_buffer, fourier.fourier(self.buffers['Time COM'],
                                                                                    self.buffers['COM'],
-                                                                                   self.buffers['Frequency'][0],
-                                                                                   T_count=2)
+                                                                                   self.buffers['Frequency'][0])
                                                , color="pink", linewidth=0.5)
         lakh_line_lin_obj = self.ax2_lakh.plot(offset_time_buffer, fourier.fourier(self.buffers['Time COM'],
                                                                                    self.buffers['OBJ'],
-                                                                                   self.buffers['Frequency'][0],
-                                                                                   T_count=2)
+                                                                                   self.buffers['Frequency'][0])
                                                , color="purple", linewidth=0.5)
-        print(f'about to put text on freq = {self.buffers["Frequency"][0]} Hz')
+        # print(f'about to put text on freq = {self.buffers["Frequency"][0]} Hz')
         self.ax2_lakh.text(self.lakh_time_offset, 3800,
                            s=f"{self.buffers['Frequency'][0]} Гц", fontsize='small', fontstretch='semi-condensed',
                            fontweight='ultralight', clip_on=True)
