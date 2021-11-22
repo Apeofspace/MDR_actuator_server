@@ -16,17 +16,17 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
     left_lim = 0x100  # 0x600 is a quarter
     right_lim = 0xFFF - left_lim
     periods_to_use = 5
-    periods_to_rec = (3, 4)
+    periods_to_rec = (3,4)
     frequency_to_change_periods = 6
-    periods_to_use2 = 15
-    periods_to_rec2 = (10, 11, 12)
+    periods_to_use2 = 13
+    periods_to_rec2 = (9,10,11)
     try:
         number_of_frequencies = len(frequencies)
         if number_of_frequencies == 0:
             raise IndexError
         current_frequency = frequencies[0]
         current_frequency_index = 0
-        block_half_freq_switching_kostil = False
+        block_half_freq_switching_kostil = True
         period = 1
         ser.baudrate = 115200
         ser.port = com_port
@@ -61,8 +61,8 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
                         kold = k
                         if period not in periods_to_rec:
                             first_time = True
+                            #todo: check if this is correct
                         period += 1
-                        print(period)
                     # страшный ужасающий костыль (это все должно быть под период == 4)
                     # но в этом случае процесс выполняется слишком быстро и виснет
                     line = ser.read(size=28)
@@ -87,7 +87,7 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
                             block_half_freq_switching_kostil = True
                             #в теории если запаздывание больше 180 то уже не спасёт никак.
                     if period > periods_to_use:
-                        print(f'draw now period {period}')
+                        # print(f'draw now period {period}')
                         msg_queue.put("draw")  # !!сообщение о том, что очередь заполнена!!
                         # переход на следующую частоту
                         if current_frequency_index == number_of_frequencies - 1:
@@ -96,8 +96,8 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
                         current_frequency_index += 1
                         current_frequency = frequencies[current_frequency_index]
                         period = 0
-                        block_half_freq_switching_kostil = False
                         if current_frequency > frequency_to_change_periods:  # смена количества периодов
+                            block_half_freq_switching_kostil = False
                             periods_to_use = periods_to_use2
                             periods_to_rec = periods_to_rec2
     except Exception as e:

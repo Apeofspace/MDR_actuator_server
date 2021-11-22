@@ -44,8 +44,9 @@ def abs_W(Ain, Bin, Aout, Bout):
 def ksi(Ain, Bin, Aout, Bout):
     """Фаза на частоте (градусы)
     аргументы: """
-    ksi = -(atan(Ain / Bin) - atan(Aout / Bout)) * 180 / pi
-    print(f"Запаздывание = {ksi}\nAin = {Ain} Bin = {Bin} Aout = {Aout} Bout = {Bout}\natan(Ain / Bin) = {atan(Ain / Bin)}\natan(Aout / Bout) = {atan(Aout / Bout)}")
+    # ksi = -(atan(Ain / Bin) - atan(Aout / Bout)) * 180 / pi
+    ksi =(atan(Bin/Ain)-atan(Bout/Aout))*180/pi - 180
+    print(f"Запаздывание = {ksi}\nAin = {Ain} Bin = {Bin} Aout = {Aout} Bout = {Bout}\natan(Bin/Ain) = {atan(Bin/Ain)}\natan(Bout/Aout) = {atan(Bout/Aout)}")
     return ksi
 
 

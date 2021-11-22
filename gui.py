@@ -152,7 +152,8 @@ class MainWindow(tk.Frame):
         self.init_lakh_plot()
         # frequencies
         self.hertz_lakh_var = tk.StringVar()
-        self.hertz_lakh_var.set("0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 7, 8, 9, 10, 12, 14, 17, 20, 25, 30")
+        self.hertz_lakh_var.set("1 1.5 2 2.5 3 3.5 4 5 6 7 8 9 10 12 14")
+        # self.hertz_lakh_var.set("0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 7, 8, 9, 10, 12, 14, 17, 20, 25, 30")
         # self.hertz_lakh_var.set("1, 2, 5, 9, 12, 20")  # укороченная тестовая программа
         # self.hertz_lakh_var.set("1, 6, 9, 12")  # максимально укороченная тестовая программа
         self.hertz_lakh_label = tk.Label(self.tab_lakh, text="Частоты [Гц]: ")
@@ -170,7 +171,8 @@ class MainWindow(tk.Frame):
         self.ax1_lakh.grid(b=True, which='major', axis='both')
         self.ax2_lakh.grid(b=True, which='major', axis='both')
         self.ax1_lakh.legend(fontsize='small')
-        # self.ax2_lakh.legend(fontsize='small')
+        # self.ax2_lakh.plot([0, 14], [1919, 1919], color="black", linewidth=0.5)
+        # plt.draw()
 
     def lakh_plot(self):
         i = 0
@@ -185,7 +187,6 @@ class MainWindow(tk.Frame):
                 # doesnt ever work with manager ques, ugh..
                 print("empty que =(")
         print(f"\nЧастота = {self.buffers['Frequency'][0]}\nКоличество точек = {i}")
-        #todo: IndexError: list index out of range если не записываются периоды
         lah, lfh = fourier.LAFCH(self.buffers['OBJ'],
                                  self.buffers['COM'],
                                  self.buffers['Time COM'],
@@ -220,6 +221,8 @@ class MainWindow(tk.Frame):
             self.ax2_lakh.bar(self.lakh_time_offset, width=self.buffers['Time COM'][-1], align='edge',
                               height=4100, color=u'#e3e3e3')
         self.lakh_time_offset += self.buffers['Time COM'][-1]
+        #это просто средняя линия вокруг которой должна в теории идти синусоида
+        self.ax2_lakh.plot([offset_time_buffer[0], offset_time_buffer[-1]], [1919, 1919], color="black", linewidth=0.5)
         plt.draw()
         for key in self.buffers.keys():
             if key not in ("lah", "lfh", "log_omega"):
@@ -263,7 +266,6 @@ class MainWindow(tk.Frame):
         return format_coord
 
     def make_format_lakh(self):
-        # current and other are axes
         def format_coord(x, y):
             # x, y are data coordinates
             y_lah = self.buffers["lah"]
@@ -276,7 +278,6 @@ class MainWindow(tk.Frame):
                 return "В декадах: {:.2f},   в Гц: {:.2f},  Lm: {:.1f},  \u03C8: {:.1f}".format(x, hz, lm, ksi)
             else:
                 return "В декадах: {:.2f},   в Гц: {:.2f},  y: {:.1f}}".format(x, hz, y)
-
         return format_coord
 
     def button_press(self):
