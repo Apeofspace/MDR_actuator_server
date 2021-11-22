@@ -18,15 +18,16 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
     periods_to_use = 5
     periods_to_rec = (3, 4)
     frequency_to_change_periods = 6
-    periods_to_use2 = 12
-    periods_to_rec2 = (10, 11)
+    periods_to_use2 = 15
+    periods_to_rec2 = (10, 11, 12)
     try:
         number_of_frequencies = len(frequencies)
         if number_of_frequencies == 0:
             raise IndexError
         current_frequency = frequencies[0]
         current_frequency_index = 0
-        period = 0
+        block_half_freq_switching_kostil = False
+        period = 1
         ser.baudrate = 115200
         ser.port = com_port
         ser.open()
@@ -50,20 +51,6 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
                     t_new = time.perf_counter()
                     dt = t_new - told
                     told = t_new
-                    if period >= periods_to_use:
-                        # переход на следующую частоту
-                        msg_queue.put("draw")  # !!сообщение о том, что очередь заполнена!!
-                        if current_frequency_index == number_of_frequencies - 1:
-                            # print('Конец эксперимента')
-                            msg_queue.put("Конец эксперимента")
-                            return  # закончен эксперимент
-                        current_frequency_index += 1
-                        current_frequency = frequencies[current_frequency_index]
-                        # print(f'Новая частота: {current_frequency}')
-                        period = 0
-                        if current_frequency > frequency_to_change_periods:  # смена количества периодов
-                            periods_to_use = periods_to_use2
-                            periods_to_rec = periods_to_rec2
                     k = k + dt * float(current_frequency)  # цифра это герцы
                     signal = sin(2 * pi * k)
                     signal += 1
@@ -72,10 +59,10 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
                     if k > (kold + 1):
                         # обнаружена смена периода
                         kold = k
-                        # print(f'Новый период {period}')
                         if period not in periods_to_rec:
                             first_time = True
                         period += 1
+                        print(period)
                     # страшный ужасающий костыль (это все должно быть под период == 4)
                     # но в этом случае процесс выполняется слишком быстро и виснет
                     line = ser.read(size=28)
@@ -94,7 +81,25 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
                         # !!ОТПРАВКА ДАННЫХ В ОЧЕРЕДЬ!!
                         csv_writer.writerow(decoded)
                         queue.put(decoded)
-
+                    if not block_half_freq_switching_kostil:
+                        if all([period > p for p in periods_to_rec]):
+                            current_frequency = current_frequency/2
+                            block_half_freq_switching_kostil = True
+                            #в теории если запаздывание больше 180 то уже не спасёт никак.
+                    if period > periods_to_use:
+                        print(f'draw now period {period}')
+                        msg_queue.put("draw")  # !!сообщение о том, что очередь заполнена!!
+                        # переход на следующую частоту
+                        if current_frequency_index == number_of_frequencies - 1:
+                            msg_queue.put("Конец эксперимента")
+                            return  # закончен эксперимент
+                        current_frequency_index += 1
+                        current_frequency = frequencies[current_frequency_index]
+                        period = 0
+                        block_half_freq_switching_kostil = False
+                        if current_frequency > frequency_to_change_periods:  # смена количества периодов
+                            periods_to_use = periods_to_use2
+                            periods_to_rec = periods_to_rec2
     except Exception as e:
         print(f"Exception in lakh process : {e}")
         ser.close()

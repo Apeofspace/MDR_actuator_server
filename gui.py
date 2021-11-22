@@ -185,6 +185,7 @@ class MainWindow(tk.Frame):
                 # doesnt ever work with manager ques, ugh..
                 print("empty que =(")
         print(f"\nЧастота = {self.buffers['Frequency'][0]}\nКоличество точек = {i}")
+        #todo: IndexError: list index out of range если не записываются периоды
         lah, lfh = fourier.LAFCH(self.buffers['OBJ'],
                                  self.buffers['COM'],
                                  self.buffers['Time COM'],
