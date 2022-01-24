@@ -4,34 +4,30 @@ from math import sin, cos, pi, sqrt, pow, atan, log10
 # коэффициенты ряда Фурье
 def A(F, t, f, k=1):
     """аргументы: функция (массив точек), время(массив точек),
-    частота, количество точек в периоде, номер гармоники"""
+    частота, номер гармоники"""
     n = len(F)
-    # return (2 / n) * sum([F[i] * cos(t[i] * 2 * pi * f * k * T_count) for i in range(n)])
     return (2 / n) * sum([F[i] * cos(t[i] * 2 * pi * f * k) for i in range(n)])
 
 
 def B(F, t, f, k=1):
     """аргументы: функция (массив точек), время(массив точек),
-    частота, количество точек в периоде, номер гармоники"""
+    частота, номер гармоники"""
     n = len(F)
-    # return 2 / n * sum([F[i] * sin(2 * pi * f * k * T_count * t[i]) for i in range(n)])
     return 2 / n * sum([F[i] * sin(2 * pi * f * k * t[i]) for i in range(n)])
 
 
 def A0(F):
-    """аргументы: функция (массив точек), количество точек в периоде"""
+    """аргументы: функция (массив точек)"""
     n = len(F)
     return 2 / n * sum(F)
 
 
 # Разложение в ряд Фурье
 def fourier(t, F, f):
-    """Создание списка F для построения ряда Фурье
-    Аргументы: массив времени, частота, коэффициенты"""
+    """Создание списка F для построения ряда Фурье"""
     A_0 = A0(F)
     A1 = A(F, t, f, 1)
     B1 = B(F, t, f, 1)
-    # F = [A_0 / 2 + A1 * cos(2 * pi * f * t[i] * T_count) + B1 * sin(2 * pi * f * t[i]* T_count) for i in range(len(t))]
     F = [A_0 / 2 + A1 * cos(2 * pi * f * t[i]) + B1 * sin(2 * pi * f * t[i]) for i in range(len(t))]
     return F
 
@@ -42,9 +38,7 @@ def abs_W(Ain, Bin, Aout, Bout):
 
 
 def ksi(Ain, Bin, Aout, Bout):
-    """Фаза на частоте (градусы)
-    аргументы: """
-    # ksi = -(atan(Ain / Bin) - atan(Aout / Bout)) * 180 / pi
+    """Фаза на частоте (градусы)"""
     ksi =(atan(Bin/Ain)-atan(Bout/Aout))*180/pi - 180
     print(f"Запаздывание = {ksi}\nAin = {Ain} Bin = {Bin} Aout = {Aout} Bout = {Bout}\natan(Bin/Ain) = {atan(Bin/Ain)}\natan(Bout/Aout) = {atan(Bout/Aout)}")
     return ksi

@@ -25,8 +25,8 @@ class MainWindow(tk.Frame):
         self.reader_process = None
         self.lakh_process = None
         self.mode = mode
-        self.buffer_size = 15000
-        self.show_on_plot = 2000
+        self.buffer_size = 16000
+        self.show_on_plot = 4000
         self.lakh_time_offset = 0
         self.lakh_stripe = True
         buffer_names = ['Time COM',
@@ -38,7 +38,8 @@ class MainWindow(tk.Frame):
                         'Frequency',
                         'lah',
                         'lfh',
-                        'log_omega']
+                        'log_omega',
+                        'Current']
         self.buffers = {name: [] for name in buffer_names}
 
         # Style
@@ -88,6 +89,7 @@ class MainWindow(tk.Frame):
                                             color='red', linewidth=0.5)
         self.line_COM, = self.ax1_anim.plot(0, 0, label='Управляющий сигнал')
         self.line_OBJ, = self.ax1_anim.plot(0, 0, label='Значение с потенциометра')
+        self.line_CUR = self.ax1_anim.plot(0, 0, label='Ток')
         self.fig_anim.legend(fontsize='small')
         self.ax1_anim.set_ylim(0, 4100)
         self.ax2_anim.set_ylim(0, 4100)
@@ -108,7 +110,7 @@ class MainWindow(tk.Frame):
         self.mode_combobox['values'] = ["Синусоида", "Меандр"]
         self.mode_combobox['state'] = 'readonly'
         self.mode_combobox.current(newindex=0)
-        self.mode_combobox.bind('<<ComboboxSelected>>', lambda func: self.mode_combobox_modified())
+        self.mode_combobox.bind('<<ComboboxSelected>>', lambda func: self.mode_combobox_modified_callback())
         self.mode_combobox.pack(side='left')
 
     def draw_control_frame(self):
@@ -121,7 +123,11 @@ class MainWindow(tk.Frame):
         self.COMbobox = tk.ttk.Combobox(self.frame_controls, textvariable=self.COMboboxvar)
         self.COMbobox['values'] = list(serial.tools.list_ports.comports())
         self.COMbobox['state'] = 'readonly'
-        self.COMbobox.set('COM13')
+        self.COMbobox.bind('<Button-1>', lambda func: self.COMbobox_modified_callback())
+        try:
+            self.COMbobox.current(len(self.COMbobox['values'])-1)
+        except:
+            print('no items for combobox')
         self.COMbobox.pack(side='left')
         self.button_connect = tk.Button(self.frame_controls, text="Подключиться", command=self.button_press, width=25)
         self.button_connect.pack(side='left', padx=(20, 10))
@@ -228,8 +234,11 @@ class MainWindow(tk.Frame):
             if key not in ("lah", "lfh", "log_omega"):
                 self.buffers[key] = []
 
-    def mode_combobox_modified(self):
+    def mode_combobox_modified_callback(self):
         self.mode.value = self.mode_combobox.current()
+
+    def COMbobox_modified_callback(self):
+        self.COMbobox['values'] = list(serial.tools.list_ports.comports())
 
     def hertz_callback(self, hertz_var):
         d = re.match("(\d+(\.)?(\d+)?)", hertz_var.get())
@@ -307,6 +316,7 @@ class MainWindow(tk.Frame):
                 self.line_OBJ.set_data(self.buffers["Time OBJ"], self.buffers["OBJ"])
                 self.line_duty.set_data(self.buffers["Time COM"], self.buffers["Duty"])
                 self.line_dir.set_data(self.buffers["Time COM"], self.buffers["Dir"])
+                # self.line_CUR.set_data(self.buffers["Time OBJ"], self.buffers["Current"])
             except Empty:
                 # this doesnt work with manager que for some reason
                 print("empty que =(")
