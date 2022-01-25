@@ -150,7 +150,8 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
                                'Duty': int.from_bytes(line[20:24], "little"),
                                'Dir': int.from_bytes(line[24:28], "little") * 100,
                                'Frequency': Hz,
-                               'Current': int.from_bytes(line[28:32], "little")}
+                               'Current': float(int.from_bytes(line[28:32], "little"))}
+                    # print(f'decoded = {decoded}')
                     csv_writer.writerow(decoded)
                     queue.put(decoded)
                     t_new = time.perf_counter()

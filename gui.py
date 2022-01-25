@@ -89,7 +89,7 @@ class MainWindow(tk.Frame):
                                             color='red', linewidth=0.5)
         self.line_COM, = self.ax1_anim.plot(0, 0, label='Управляющий сигнал')
         self.line_OBJ, = self.ax1_anim.plot(0, 0, label='Значение с потенциометра')
-        self.line_CUR = self.ax1_anim.plot(0, 0, label='Ток')
+        self.line_CUR, = self.ax1_anim.plot(0, 0, label='Ток')
         self.fig_anim.legend(fontsize='small')
         self.ax1_anim.set_ylim(0, 4100)
         self.ax2_anim.set_ylim(0, 4100)
@@ -257,13 +257,14 @@ class MainWindow(tk.Frame):
             y_obj = self.buffers["OBJ"]
             y_duty = self.buffers["Duty"]
             x_time = self.buffers['Time COM']
+            y_tok = self.buffers['Current']
             if len(x_time):
                 com = np.interp(x, x_time, y_com)
                 obj = np.interp(x, x_time, y_obj)
                 duty = np.interp(x, x_time, y_duty)
                 return (
-                    "Упр. сигнал: {:.0f},   вых. сигнал: {:.0f},   коэф. заполнения: {:.0f},   время: {:.2f}".format(
-                        com, obj, duty, y, x))
+                    "Упр. сигнал: {:.0f},   вых. сигнал: {:.0f},   коэф. заполнения: {:.0f},   время: {:.2f}, ток: {:.2f}".format(
+                        com, obj, duty, y, x, y_tok))
             else:
                 # convert to display coords
                 display_coord = current.transData.transform((x, y))
@@ -316,7 +317,7 @@ class MainWindow(tk.Frame):
                 self.line_OBJ.set_data(self.buffers["Time OBJ"], self.buffers["OBJ"])
                 self.line_duty.set_data(self.buffers["Time COM"], self.buffers["Duty"])
                 self.line_dir.set_data(self.buffers["Time COM"], self.buffers["Dir"])
-                # self.line_CUR.set_data(self.buffers["Time OBJ"], self.buffers["Current"])
+                self.line_CUR.set_data(self.buffers["Time OBJ"], self.buffers["Current"])
             except Empty:
                 # this doesnt work with manager que for some reason
                 print("empty que =(")
