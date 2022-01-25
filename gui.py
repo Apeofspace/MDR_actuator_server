@@ -262,9 +262,10 @@ class MainWindow(tk.Frame):
                 com = np.interp(x, x_time, y_com)
                 obj = np.interp(x, x_time, y_obj)
                 duty = np.interp(x, x_time, y_duty)
+                tok = np.interp(x, x_time, y_tok)
                 return (
                     "Упр. сигнал: {:.0f},   вых. сигнал: {:.0f},   коэф. заполнения: {:.0f},   время: {:.2f}, ток: {:.2f}".format(
-                        com, obj, duty, y, x, y_tok))
+                        com, obj, duty, y, x, tok))
             else:
                 # convert to display coords
                 display_coord = current.transData.transform((x, y))

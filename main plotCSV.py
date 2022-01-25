@@ -36,7 +36,7 @@ def linearize(xobj, yobj):
     return [x1*1000 for x1 in x], y
 
 
-xcom, ycom, xobj, yobj, duty, dir = [], [], [], [], [], []
+xcom, ycom, xobj, yobj, duty, dir, tok = [], [], [], [], [], [], []
 try:
     arg = sys.argv[1]
 except Exception:
@@ -60,13 +60,14 @@ try:
     with open(arg, "r", newline='') as csv_file:
         reader = csv.DictReader(csv_file)
         for row in reader:
-            if row != {'Time COM': '0', 'Time OBJ': '0', 'COM': '0', 'OBJ': '0', 'Duty': '0', 'Dir': 0}:
+            if row != {'Time COM': '0', 'Time OBJ': '0', 'COM': '0', 'OBJ': '0', 'Duty': '0', 'Dir': 0, 'Current': 0}:
                 xcom.append(float(row['Time COM']))
                 ycom.append(int(row['COM']))
                 xobj.append(float(row['Time OBJ']))
                 yobj.append(int(row['OBJ']))
                 duty.append(int(row['Duty']))
                 dir.append(int(row['Dir']))
+                tok.append(float(row['Current']))
 
     fig, ax = plt.subplots(tight_layout=True)
     plt.grid(b=True, which='major', axis='both')
@@ -78,6 +79,7 @@ try:
     line2, = ax.plot(xobj, yobj, label='Значение с потенциометра')
     line3, = ax2.plot(xcom, duty, label='Коэффициент заполнения', color='green', linewidth=0.7)
     line4, = ax2.plot(xcom, dir, label='Направление', color='red', linewidth=0.5)
+    line5, = ax.plot(xobj, tok, label='Ток', color='purple', linewidth=0.7)
     # linxobj, linyobj = linearize(xobj, yobj)
     # line5, = ax.plot(linxobj, linyobj, label='Линеаризованное значение', color='purple', linewidth=0.5)
     fig.canvas.manager.set_window_title(arg)
