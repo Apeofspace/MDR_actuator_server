@@ -39,7 +39,8 @@ class MainWindow(tk.Frame):
                         'lah',
                         'lfh',
                         'log_omega',
-                        'Current']
+                        'Current',
+                        'Voltage']
         self.buffers = {name: [] for name in buffer_names}
 
         # Style
@@ -81,7 +82,13 @@ class MainWindow(tk.Frame):
         self.toolbar_anim.update()
         self.toolbar_anim.pack(side='top')
         plt.grid(b=True, which='major', axis='both')  # grid can be done thro axes.grid
+        self.ax4_voltage = self.ax1_anim.twinx()
+        self.ax4_voltage.set_ylim(0, 30)
+        self.ax4_voltage.set_yticklabels([])  # hide y ticks
+        self.ax3_current = self.ax1_anim.twinx()
+        self.ax3_current.set_ylim(-3, 3)
         self.ax2_anim = self.ax1_anim.twinx()
+        self.ax2_anim.set_yticklabels([])  # hide y ticks
         self.ax2_anim.format_coord = self.make_format(self.ax1_anim, self.ax2_anim)
         self.line_duty, = self.ax2_anim.plot(0, 0, label='Коэффициент заполнения',
                                              color='green', linewidth=0.5)
@@ -89,7 +96,8 @@ class MainWindow(tk.Frame):
                                             color='red', linewidth=0.5)
         self.line_COM, = self.ax1_anim.plot(0, 0, label='Управляющий сигнал')
         self.line_OBJ, = self.ax1_anim.plot(0, 0, label='Значение с потенциометра')
-        self.line_CUR, = self.ax1_anim.plot(0, 0, label='Ток')
+        self.line_CUR, = self.ax3_current.plot(0, 0, label='Ток', color='purple', linewidth=0.7)
+        self.line_V, = self.ax4_voltage.plot(0,0, label='Напр.', color='cyan', linewidth=0.7)
         self.fig_anim.legend(fontsize='small')
         self.ax1_anim.set_ylim(0, 4100)
         self.ax2_anim.set_ylim(0, 4100)
@@ -258,14 +266,16 @@ class MainWindow(tk.Frame):
             y_duty = self.buffers["Duty"]
             x_time = self.buffers['Time COM']
             y_tok = self.buffers['Current']
+            y_v = self.buffers['Voltage']
             if len(x_time):
                 com = np.interp(x, x_time, y_com)
                 obj = np.interp(x, x_time, y_obj)
                 duty = np.interp(x, x_time, y_duty)
                 tok = np.interp(x, x_time, y_tok)
+                napr = np.interp(x, x_time, y_v)
                 return (
-                    "Упр. сигнал: {:.0f},   вых. сигнал: {:.0f},   коэф. заполнения: {:.0f},   время: {:.2f}, ток: {:.2f}".format(
-                        com, obj, duty, y, x, tok))
+                    "Упр. сигнал: {:.0f},   вых. сигнал: {:.0f},   коэф. заполнения: {:.0f},   время: {:.2f}, ток: {:.2f} A, напр. {:.2f}".format(
+                        com, obj, duty, y, tok, napr))
             else:
                 # convert to display coords
                 display_coord = current.transData.transform((x, y))
@@ -319,6 +329,7 @@ class MainWindow(tk.Frame):
                 self.line_duty.set_data(self.buffers["Time COM"], self.buffers["Duty"])
                 self.line_dir.set_data(self.buffers["Time COM"], self.buffers["Dir"])
                 self.line_CUR.set_data(self.buffers["Time OBJ"], self.buffers["Current"])
+                self.line_V.set_data(self.buffers["Time COM"], self.buffers["Voltage"])
             except Empty:
                 # this doesnt work with manager que for some reason
                 print("empty que =(")

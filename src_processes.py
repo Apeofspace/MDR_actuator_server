@@ -117,7 +117,7 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
     k = 0
     first_time = True
     signal = 0
-    fields = ["Time COM", "Time OBJ", "COM", "OBJ", "Duty", "Dir", "Frequency", "Current"]
+    fields = ["Time COM", "Time OBJ", "COM", "OBJ", "Duty", "Dir", "Frequency", "Current", "Voltage"]
     try:
         ser.baudrate = 115200
         ser.port = com_port
@@ -151,8 +151,8 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
                                'Duty': int.from_bytes(line[20:24], "little"),
                                'Dir': int.from_bytes(line[24:28], "little") * 100,
                                'Frequency': Hz,
-                               'Current': ((zero_point_current-float(int.from_bytes(line[28:32], "little")))*3.3/0xfff)*10} #A
-                    print(f'cur = {decoded["Current"]}')
+                               'Current': ((zero_point_current-float(int.from_bytes(line[30:32], "little")))*3.3/0xfff)*10,  #Amps
+                               'Voltage': (float(int.from_bytes(line[28:30], "little"))*3.3/0xfff)*7+0.3}
                     csv_writer.writerow(decoded)
                     queue.put(decoded)
                     t_new = time.perf_counter()
