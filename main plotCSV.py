@@ -29,10 +29,9 @@ def make_format(other, current):
             obj = np.interp(x, xcom, yobj)
             dut = np.interp(x, xcom, duty)
             t = np.interp(x, xcom, tok)
-            napr = np.interp(x, xcom, v)
             return (
-                "Упр. сигнал: {:.0f},   вых. сигнал: {:.0f},   коэф. заполнения: {:.0f},   время: {:.2f}, ток: {:.2f} A, напр. {:.2f}".format(
-                    com, obj, dut, y, t, napr))
+                "Упр. сигнал: {:.0f},   вых. сигнал: {:.0f},   коэф. заполнения: {:.0f},   время: {:.2f}, ток: {:.2f} A".format(
+                    com, obj, dut, y, t))
         else:
             # convert to display coords
             display_coord = current.transData.transform((x, y))
@@ -85,7 +84,7 @@ try:
         reader = csv.DictReader(csv_file)
         for row in reader:
             if row != {'Time COM': '0', 'Time OBJ': '0', 'COM': '0', 'OBJ': '0',
-                       'Duty': '0', 'Dir': 0, 'Current': 0, 'Voltage': 0}:
+                       'Duty': '0', 'Dir': 0, 'Current': 0}:
                 xcom.append(float(row['Time COM']))
                 ycom.append(int(row['COM']))
                 xobj.append(float(row['Time OBJ']))
@@ -93,26 +92,21 @@ try:
                 duty.append(int(row['Duty']))
                 dir.append(int(row['Dir']))
                 tok.append(float(row['Current']))
-                v.append(float(row['Voltage']))
 
     fig, ax = plt.subplots(figsize=(12, 6), tight_layout=True)
     plt.grid(b=True, which='major', axis='both')
     ax3 = ax.twinx()
-    ax4 = ax.twinx()
     ax2 = ax.twinx()
     ax2.format_coord = make_format(ax, ax2)
     ax3.set_ylim(-3, 3)
     ax.set_ylim(0, 4100)
     ax2.set_ylim(0, 4100)
-    ax4.set_ylim(0, 30)
     ax2.set_yticklabels([])
-    ax4.set_yticklabels([])
     line1, = ax.plot(xcom, ycom, label='Управляющий сигнал')
     line2, = ax.plot(xobj, yobj, label='Значение с потенциометра')
     line3, = ax2.plot(xcom, duty, label='Коэффициент заполнения', color='green', linewidth=0.5)
     line4, = ax2.plot(xcom, dir, label='Направление', color='red', linewidth=0.5)
     line5, = ax3.plot(xobj, tok, label='Ток', color='purple', linewidth=0.7)
-    line6, = ax4.plot(xobj, v, label='Напр.', color='cyan', linewidth=0.7)
     # linxobj, linyobj = linearize(xobj, yobj)
     # line5, = ax.plot(linxobj, linyobj, label='Линеаризованное значение', color='purple', linewidth=0.5)
     fig.canvas.manager.set_window_title(arg)
