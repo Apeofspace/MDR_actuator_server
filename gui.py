@@ -88,7 +88,7 @@ class MainWindow(tk.Frame):
         self.ax2_anim.format_coord = self.make_format(self.ax1_anim, self.ax2_anim)
         self.line_duty, = self.ax2_anim.plot(0, 0, label='Коэффициент заполнения',
                                              color='green', linewidth=0.5)
-        self.line_dir, = self.ax2_anim.plot(0, 0, label='Направление',
+        self.line_dir, = self.ax2_anim.plot(0, 0, label='Направление движения',
                                             color='red', linewidth=0.5)
         self.line_COM, = self.ax1_anim.plot(0, 0, label='Управляющий сигнал')
         self.line_OBJ, = self.ax1_anim.plot(0, 0, label='Значение с потенциометра')
@@ -267,8 +267,8 @@ class MainWindow(tk.Frame):
                 duty = np.interp(x, x_time, y_duty)
                 tok = np.interp(x, x_time, y_tok)
                 return (
-                    "Упр. сигнал: {:.0f},   вых. сигнал: {:.0f},   коэф. заполнения: {:.0f},   время: {:.2f}, ток: {:.2f} A".format(
-                        com, obj, duty, y, tok))
+                    "Упр. сигнал: {:.0f},   вых. сигнал: {:.0f},   коэф. заполнения: {:.0f},   время: {:.2f} мс, ток: {:.2f} A".format(
+                        com, obj, duty, x, tok))
             else:
                 # convert to display coords
                 display_coord = current.transData.transform((x, y))

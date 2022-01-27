@@ -5,8 +5,8 @@ from math import sin, pi
 import serial
 
 package_length = 32
-left_lim = 660  # 0x600 is a quarter
-right_lim = 3720
+left_lim = 420  # 0x600 is a quarter
+right_lim = 3675
 zero_point_current = 3135
 
 def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, frequencies):
