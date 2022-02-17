@@ -8,16 +8,17 @@ package_length = 32
 left_lim = 420  # 0x600 is a quarter
 right_lim = 3675
 zero_point_current = 3135
+fields = ["Time COM", "Time OBJ", "COM", "OBJ", "Duty", "Dir", "Frequency", "Current"]
 
 def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, frequencies):
-    global package_length, left_lim, right_lim
+    global package_length, left_lim, right_lim, fields
     print("lakh process started")
     ser = serial.Serial()
     told = time.perf_counter()
     k = 0
     kold = 0
     first_time = True
-    fields = ["Time COM", "Time OBJ", "COM", "OBJ", "Duty", "Dir", "Frequency"]
+    # fields = ["Time COM", "Time OBJ", "COM", "OBJ", "Duty", "Dir", "Frequency"]
     periods_to_use = 5
     periods_to_rec = (3, 4)
     frequency_to_change_periods = 6
@@ -79,7 +80,8 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
                                'OBJ': int.from_bytes(line[0:2], "little"),
                                'Duty': int.from_bytes(line[20:24], "little"),
                                'Dir': int.from_bytes(line[24:28], "little") * 100,
-                               'Frequency': current_frequency}
+                               'Frequency': current_frequency,
+                               'Current': ((zero_point_current-float(int.from_bytes(line[28:32], "little")))*3.3/0xfff)*10}  #Amps}
                     if period in periods_to_rec:
                         # !!ОТПРАВКА ДАННЫХ В ОЧЕРЕДЬ!!
                         csv_writer.writerow(decoded)
@@ -110,14 +112,13 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
 
 
 def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, hertz, mode):
-    global package_length, left_lim, right_lim
+    global package_length, left_lim, right_lim, fields
     print("process started")
     ser = serial.Serial()
     told = time.perf_counter()
     k = 0
     first_time = True
     signal = 0
-    fields = ["Time COM", "Time OBJ", "COM", "OBJ", "Duty", "Dir", "Frequency", "Current"]
     try:
         ser.baudrate = 115200
         ser.port = com_port
