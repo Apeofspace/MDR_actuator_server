@@ -8,6 +8,8 @@ from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, NavigationTool
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from queue import Empty
+
+import src_processes
 from src_processes import *
 import fourier
 import numpy as np
@@ -41,25 +43,6 @@ class MainWindow(tk.Frame):
                         'log_omega',
                         'Current']
         self.buffers = {name: [] for name in buffer_names}
-
-        # Style
-        # style = ttk.Style()
-        # style.theme_create('pastel', settings={
-        #     "TNotebook.Tab": {
-        #         "configure": {
-        #             "background": '#d9ffcc',  # tab color when not selected
-        #             "padding": [10, 2],
-        #             # [space between text and horizontal tab-button border, space between text and vertical tab_button border]
-        #             "font": "white",
-        #             "borderwidth": 2
-        #         },
-        #         "map": {
-        #             "background": [("selected", '#ccffff')],  # Tab color when selected\
-        #             "expand": [("selected", [1, 1, 1, 0])]  # text margins
-        #         }
-        #     }
-        # })
-        # style.theme_use('pastel')
         # TabControl
         self.tabControl = ttk.Notebook(self)
         self.tab_animation = tk.Frame(self)
@@ -149,21 +132,11 @@ class MainWindow(tk.Frame):
         # lines
         self.line_lakh_amp, = self.ax1_lakh.plot(0, 0, label='Lm', marker='.')
         self.line_lakh_phase, = self.ax1_lakh.plot(0, 0, label="\u03C8", marker='.')
-        # self.line_lakh_com, = self.ax2_lakh.plot(0, 0, label="Управляющий сигнал")
-        # self.line_lakh_obj, = self.ax2_lakh.plot(0, 0, label="Значение с потенциометра")
-        # self.line_lakh_duty, = self.ax2_lakh.plot(0, 0, label="Коэффициент заполнения",
-        #                                           color='green', linewidth=0.5)
-        # self.line_lakh_linearized_com = self.ax2_lakh.plot(0, 0, label="Лин. упр. сигнал", linewidth=0.5,
-        #                                                    color='darkblue')
-        # self.line_lakh_linearized_obj = self.ax2_lakh.plot(0, 0, label="Лин. знач. с пот.", linewidth=0.5,
-        #                                                    color='red')
         # visuals
         self.init_lakh_plot()
         # frequencies
         self.hertz_lakh_var = tk.StringVar()
         self.hertz_lakh_var.set("1 1.5 2 2.5 3 3.5 4 5 6 7 8 9 10 12 14")
-        # self.hertz_lakh_var.set("0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 7, 8, 9, 10, 12, 14, 17, 20, 25, 30")
-        # self.hertz_lakh_var.set("1, 2, 5, 9, 12, 20")  # укороченная тестовая программа
         # self.hertz_lakh_var.set("1, 6, 9, 12")  # максимально укороченная тестовая программа
         self.hertz_lakh_label = tk.Label(self.tab_lakh, text="Частоты [Гц]: ")
         self.hertz_lakh_entry = tk.Entry(self.tab_lakh, textvariable=self.hertz_lakh_var, width=70)
@@ -180,8 +153,6 @@ class MainWindow(tk.Frame):
         self.ax1_lakh.grid(b=True, which='major', axis='both')
         self.ax2_lakh.grid(b=True, which='major', axis='both')
         self.ax1_lakh.legend(fontsize='small')
-        # self.ax2_lakh.plot([0, 14], [1919, 1919], color="black", linewidth=0.5)
-        # plt.draw()
 
     def lakh_plot(self):
         i = 0
@@ -231,7 +202,10 @@ class MainWindow(tk.Frame):
                               height=4100, color=u'#e3e3e3')
         self.lakh_time_offset += self.buffers['Time COM'][-1]
         #это просто средняя линия вокруг которой должна в теории идти синусоида
-        self.ax2_lakh.plot([offset_time_buffer[0], offset_time_buffer[-1]], [1919, 1919], color="black", linewidth=0.5)
+        self.ax2_lakh.plot([offset_time_buffer[0], offset_time_buffer[-1]],
+                           [(src_processes.right_lim-src_processes.left_lim)/2+src_processes.left_lim,
+                            (src_processes.right_lim-src_processes.left_lim)/2+src_processes.left_lim],
+                           color="black", linewidth=0.5)
         plt.draw()
         for key in self.buffers.keys():
             if key not in ("lah", "lfh", "log_omega"):

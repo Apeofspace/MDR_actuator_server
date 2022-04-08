@@ -59,7 +59,8 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
                     signal = sin(2 * pi * k)
                     signal += 1
                     signal = (signal * (right_lim - left_lim)) / 2 + left_lim
-                    ser.write(str(int(signal)).encode().zfill(4))
+                    # ser.write(str(int(signal)).encode().zfill(4))
+                    ser.write(serial.to_bytes(signal))
                     if k > (kold + 1):
                         # обнаружена смена периода
                         kold = k
@@ -164,7 +165,8 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
                         signal = sin(2 * pi * k)
                         signal += 1
                         signal = (signal * (right_lim - left_lim)) / 2 + left_lim
-                        ser.write(str(int(signal)).encode().zfill(4))
+                        # ser.write(str(int(signal)).encode().zfill(4))
+                        ser.write(serial.to_bytes(signal))
                     elif mode.value == 1:
                         # меандр
                         if not (Hz == 0):

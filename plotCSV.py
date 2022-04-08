@@ -101,7 +101,6 @@ if __name__ == '__main__':
         arg = '-latest'
     if arg == '-latest' or arg == 'l':
         filename = find_latest_file()
-        print(f'{filename=}')
         if filename is None:
             sys.exit()
     buffers = read_from_csv(filename)

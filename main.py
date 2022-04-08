@@ -4,6 +4,7 @@ from gui import MainWindow
 import sys
 import plotCSV
 
+
 def normal_start():
     multiprocessing.freeze_support()
     q_manager = multiprocessing.Manager()
