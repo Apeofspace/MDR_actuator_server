@@ -33,6 +33,7 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
         block_half_freq_switching_kostil = True
         period = 1
         ser.baudrate = 115200
+        ser.timeout = 0.5
         ser.port = com_port
         ser.open()
         msg_queue.put(ser.portstr)
@@ -59,8 +60,8 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
                     signal = sin(2 * pi * k)
                     signal += 1
                     signal = (signal * (right_lim - left_lim)) / 2 + left_lim
-                    # ser.write(str(int(signal)).encode().zfill(4))
-                    ser.write(serial.to_bytes(signal))
+                    ser.write(str(int(signal)).encode().zfill(4))
+                    # ser.write(serial.to_bytes(signal))
                     if k > (kold + 1):
                         # обнаружена смена периода
                         kold = k
@@ -122,6 +123,7 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
     signal = 0
     try:
         ser.baudrate = 115200
+        ser.timeout = 0.5
         ser.port = com_port
         ser.open()
         msg_queue.put(ser.portstr)
@@ -165,8 +167,8 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
                         signal = sin(2 * pi * k)
                         signal += 1
                         signal = (signal * (right_lim - left_lim)) / 2 + left_lim
-                        # ser.write(str(int(signal)).encode().zfill(4))
-                        ser.write(serial.to_bytes(signal))
+                        ser.write(str(int(signal)).encode().zfill(4))
+                        # ser.write(serial.to_bytes(signal))
                     elif mode.value == 1:
                         # меандр
                         if not (Hz == 0):
