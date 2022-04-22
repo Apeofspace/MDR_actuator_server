@@ -81,7 +81,7 @@ class MainWindow(tk.Frame):
         self.ax2_anim.set_ylim(0, 4100)
         self.animation = FuncAnimation(self.fig_anim, self.animate, interval=16, blit=False)
         self.animation.pause()  # dont let the animation run. doesnt work?
-        plt.xlabel("[мс]")
+        plt.xlabel("[с]")
         # hertz
         self.hertz_label = tk.Label(self.tab_animation, text='Частота [Гц]: ')
         self.hertz_label.pack(side='left', padx=10)
@@ -241,7 +241,7 @@ class MainWindow(tk.Frame):
                 duty = np.interp(x, x_time, y_duty)
                 tok = np.interp(x, x_time, y_tok)
                 return (
-                    "Упр. сигнал: {:.0f},   вых. сигнал: {:.0f},   коэф. заполнения: {:.0f},   время: {:.2f} мс, ток: {:.2f} A".format(
+                    "Упр. сигнал: {:.0f},   вых. сигнал: {:.0f},   коэф. заполнения: {:.0f},   время: {:.2f} с, ток: {:.2f} A".format(
                         com, obj, duty, x, tok))
             else:
                 # convert to display coords

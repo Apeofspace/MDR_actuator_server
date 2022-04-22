@@ -4,11 +4,14 @@ import datetime
 from math import sin, pi
 import serial
 
-package_length = 32
-left_lim = 420  # 0x600 is a quarter
-right_lim = 3675
+package_length = 27
+left_lim = 1000  # 0x600 is a quarter
+right_lim = 3500
 zero_point_current = 3135
 fields = ["Time COM", "Time OBJ", "COM", "OBJ", "Duty", "Dir", "Frequency", "Current"]
+baudrate = 115200
+
+
 
 def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, frequencies):
     global package_length, left_lim, right_lim, fields
@@ -32,7 +35,7 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
         current_frequency_index = 0
         block_half_freq_switching_kostil = True
         period = 1
-        ser.baudrate = 115200
+        ser.baudrate = baudrate
         ser.timeout = 0.5
         ser.port = com_port
         ser.open()
@@ -60,7 +63,9 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
                     signal = sin(2 * pi * k)
                     signal += 1
                     signal = (signal * (right_lim - left_lim)) / 2 + left_lim
-                    ser.write(str(int(signal)).encode().zfill(4))
+
+                    send_signal(signal, ser)
+                    # ser.write(str(int(signal)).encode().zfill(4)) # тут int, потому что signal - это float
                     # ser.write(serial.to_bytes(signal))
                     if k > (kold + 1):
                         # обнаружена смена периода
@@ -76,14 +81,7 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
                         initial_com_time = float(int.from_bytes(line[4:12], "little")) / 80000000
                         initial_obj_time = float(int.from_bytes(line[12:20], "little")) / 80000000
                         first_time = False
-                    decoded = {'Time COM': float(int.from_bytes(line[4:12], "little")) / 80000000 - initial_com_time,
-                               'Time OBJ': float(int.from_bytes(line[12:20], "little")) / 80000000 - initial_obj_time,
-                               'COM': int.from_bytes(line[2:4], "little"),
-                               'OBJ': int.from_bytes(line[0:2], "little"),
-                               'Duty': int.from_bytes(line[20:24], "little"),
-                               'Dir': int.from_bytes(line[24:28], "little") * 100,
-                               'Frequency': current_frequency,
-                               'Current': ((zero_point_current-float(int.from_bytes(line[28:32], "little")))*3.3/0xfff)*10}  #Amps}
+                    decoded = decode_line(line, initial_com_time, initial_obj_time, current_frequency)
                     if period in periods_to_rec:
                         # !!ОТПРАВКА ДАННЫХ В ОЧЕРЕДЬ!!
                         csv_writer.writerow(decoded)
@@ -122,8 +120,8 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
     first_time = True
     signal = 0
     try:
-        ser.baudrate = 115200
-        ser.timeout = 0.5
+        ser.baudrate = baudrate
+        ser.timeout = 1
         ser.port = com_port
         ser.open()
         msg_queue.put(ser.portstr)
@@ -144,18 +142,13 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
                     break
                 if connected:
                     line = ser.read(size=package_length)
+                    if len(line) < package_length:
+                        print("timeout?")
                     if first_time:
-                        initial_com_time = float(int.from_bytes(line[4:12], "little")) / 80000
-                        initial_obj_time = float(int.from_bytes(line[12:20], "little")) / 80000
+                        initial_com_time = float(int.from_bytes(line[4:12], "little")) / 80000000
+                        initial_obj_time = float(int.from_bytes(line[12:20], "little")) / 80000000
                         first_time = False
-                    decoded = {'Time COM': float(int.from_bytes(line[4:12], "little")) / 80000 - initial_com_time,
-                               'Time OBJ': float(int.from_bytes(line[12:20], "little")) / 80000 - initial_obj_time,
-                               'COM': int.from_bytes(line[2:4], "little"),
-                               'OBJ': int.from_bytes(line[0:2], "little"),
-                               'Duty': int.from_bytes(line[20:24], "little"),
-                               'Dir': int.from_bytes(line[24:28], "little") * 100,
-                               'Frequency': Hz,
-                               'Current': ((zero_point_current-float(int.from_bytes(line[28:32], "little")))*3.3/0xfff)*10}  #Amps
+                    decoded = decode_line(line, initial_com_time, initial_obj_time, Hz)
                     csv_writer.writerow(decoded)
                     queue.put(decoded)
                     t_new = time.perf_counter()
@@ -167,7 +160,8 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
                         signal = sin(2 * pi * k)
                         signal += 1
                         signal = (signal * (right_lim - left_lim)) / 2 + left_lim
-                        ser.write(str(int(signal)).encode().zfill(4))
+                        send_signal(signal, ser)
+                        # ser.write(str(int(signal)).encode().zfill(4))
                         # ser.write(serial.to_bytes(signal))
                     elif mode.value == 1:
                         # меандр
@@ -178,8 +172,25 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
                                     signal = left_lim
                                 else:
                                     signal = right_lim
-                                ser.write(str(int(signal)).encode().zfill(4))
+                                send_signal(signal, ser)
     except Exception as e:
         print(f"Serial exception in process : {e}")
         ser.close()
         msg_queue.put(e)
+
+
+def send_signal(signal, ser):
+    ser.write(bytes([0xab, 0xbc]) + int(signal).to_bytes(2, 'big') + bytes([0xef, 0xef]))
+
+
+def decode_line(line, initial_com_time, initial_obj_time, current_frequency):
+    decoded = {'Time COM': float(int.from_bytes(line[4:12], "little")) / 80000000 - initial_com_time,
+               'Time OBJ': float(int.from_bytes(line[12:20], "little")) / 80000000 - initial_obj_time,
+               'COM': int.from_bytes(line[2:4], "little"),
+               'OBJ': int.from_bytes(line[0:2], "little"),
+               'Duty': int.from_bytes(line[20:24], "little"),
+               'Dir': line[25] * 100,
+               'Frequency': current_frequency,
+               'Current': ((zero_point_current - float(
+                   int.from_bytes(line[25:27], "little"))) * 3.3 / 0xfff) * 10}  # Amps}
+    return decoded
