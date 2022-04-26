@@ -166,10 +166,15 @@ class MainWindow(tk.Frame):
             except Empty:
                 # doesnt ever work with manager ques, ugh..
                 print("empty que =(")
-        print(f"\nЧастота = {self.buffers['Frequency'][0]}\nКоличество точек = {i}")
+        print(f"\nЧастота = {self.buffers['Frequency'][0]} Гц\nКоличество точек = {i}")
+        # lah, lfh = fourier.LAFCH(self.buffers['OBJ'],
+        #                          self.buffers['COM'],
+        #                          self.buffers['Time COM'],
+        #                          self.buffers['Frequency'][0])
         lah, lfh = fourier.LAFCH(self.buffers['OBJ'],
                                  self.buffers['COM'],
                                  self.buffers['Time COM'],
+                                 self.buffers['Time OBJ'],
                                  self.buffers['Frequency'][0])
         self.buffers['lah'].append(lah)
         self.buffers['lfh'].append(lfh)

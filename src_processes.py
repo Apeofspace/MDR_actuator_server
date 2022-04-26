@@ -5,28 +5,29 @@ from math import sin, pi
 import serial
 
 package_length = 27
-left_lim = 1000  # 0x600 is a quarter
-right_lim = 3500
+left_lim = 1500  # 0x600 is a quarter
+right_lim = 1700
 zero_point_current = 3135
 fields = ["Time COM", "Time OBJ", "COM", "OBJ", "Duty", "Dir", "Frequency", "Current"]
 baudrate = 115200
+frequency_of_sending = 2000 #hz
 
-
+last_function_execution = time.perf_counter()
 
 def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, frequencies):
-    global package_length, left_lim, right_lim, fields
+    global package_length, left_lim, right_lim, fields, last_function_execution
     print("lakh process started")
     ser = serial.Serial()
     told = time.perf_counter()
     k = 0
     kold = 0
     first_time = True
-    # fields = ["Time COM", "Time OBJ", "COM", "OBJ", "Duty", "Dir", "Frequency"]
     periods_to_use = 5
     periods_to_rec = (3, 4)
     frequency_to_change_periods = 6
     periods_to_use2 = 13
     periods_to_rec2 = (9, 10, 11)
+    delta_time_func_exec = 1 / frequency_of_sending
     try:
         number_of_frequencies = len(frequencies)
         if number_of_frequencies == 0:
@@ -36,7 +37,8 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
         block_half_freq_switching_kostil = True
         period = 1
         ser.baudrate = baudrate
-        ser.timeout = 0.5
+        ser.timeout = 1
+        ser.parity = serial.PARITY_NONE
         ser.port = com_port
         ser.open()
         msg_queue.put(ser.portstr)
@@ -63,10 +65,6 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
                     signal = sin(2 * pi * k)
                     signal += 1
                     signal = (signal * (right_lim - left_lim)) / 2 + left_lim
-
-                    send_signal(signal, ser)
-                    # ser.write(str(int(signal)).encode().zfill(4)) # тут int, потому что signal - это float
-                    # ser.write(serial.to_bytes(signal))
                     if k > (kold + 1):
                         # обнаружена смена периода
                         kold = k
@@ -105,6 +103,9 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
                             block_half_freq_switching_kostil = False
                             periods_to_use = periods_to_use2
                             periods_to_rec = periods_to_rec2
+                    if time.perf_counter() - last_function_execution > delta_time_func_exec:  # to make function run at lower than certain frequency
+                        last_function_execution = time.perf_counter()
+                        send_signal(signal, ser)
     except Exception as e:
         print(f"Exception in lakh process : {e}")
         ser.close()
@@ -112,17 +113,19 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
 
 
 def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, hertz, mode):
-    global package_length, left_lim, right_lim, fields
+    global package_length, left_lim, right_lim, fields,  last_function_execution
     print("process started")
     ser = serial.Serial()
     told = time.perf_counter()
     k = 0
     first_time = True
     signal = 0
+    delta_time_func_exec = 1/frequency_of_sending
     try:
         ser.baudrate = baudrate
         ser.timeout = 1
         ser.port = com_port
+        ser.parity = serial.PARITY_NONE
         ser.open()
         msg_queue.put(ser.portstr)
         with open("Data_{}.csv".format(datetime.datetime.now().strftime("%Y_%m_%d-%H%M%S")), 'w',
@@ -160,9 +163,9 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
                         signal = sin(2 * pi * k)
                         signal += 1
                         signal = (signal * (right_lim - left_lim)) / 2 + left_lim
-                        send_signal(signal, ser)
-                        # ser.write(str(int(signal)).encode().zfill(4))
-                        # ser.write(serial.to_bytes(signal))
+                        if time.perf_counter() - last_function_execution > delta_time_func_exec:  # to make function run at lower than certain frequency
+                            last_function_execution = time.perf_counter()
+                            send_signal(signal, ser)
                     elif mode.value == 1:
                         # меандр
                         if not (Hz == 0):
@@ -172,7 +175,9 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
                                     signal = left_lim
                                 else:
                                     signal = right_lim
-                                send_signal(signal, ser)
+                                if time.perf_counter() - last_function_execution > delta_time_func_exec:  # to make function run at lower than certain frequency
+                                    last_function_execution = time.perf_counter()
+                                    send_signal(signal, ser)
     except Exception as e:
         print(f"Serial exception in process : {e}")
         ser.close()
