@@ -178,7 +178,8 @@ class MainWindow(tk.Frame):
                                  self.buffers['Frequency'][0])
         self.buffers['lah'].append(lah)
         self.buffers['lfh'].append(lfh)
-        self.buffers['log_omega'].append(math.log10(self.buffers['Frequency'][0]))
+        omega = self.buffers['Frequency'][0] * 2 * pi
+        self.buffers['log_omega'].append(math.log10(omega))
         self.line_lakh_amp.set_data(self.buffers['log_omega'], self.buffers['lah'])
         self.line_lakh_phase.set_data(self.buffers['log_omega'], self.buffers['lfh'])
         print(f'time offset is {self.lakh_time_offset} on frequency {self.buffers["Frequency"][0]}')
@@ -246,7 +247,7 @@ class MainWindow(tk.Frame):
                 duty = np.interp(x, x_time, y_duty)
                 tok = np.interp(x, x_time, y_tok)
                 return (
-                    "Упр. сигнал: {:.0f},   вых. сигнал: {:.0f},   коэф. заполнения: {:.0f},   время: {:.2f} с, ток: {:.2f} A".format(
+                    "Упр. сигнал: {:.0f},   вых. сигнал: {:.0f},   коэф. заполнения: {:.0f},   время: {:.4f} с, ток: {:.2f} A".format(
                         com, obj, duty, x, tok))
             else:
                 # convert to display coords
@@ -254,7 +255,7 @@ class MainWindow(tk.Frame):
                 inv = other.transData.inverted()
                 # convert back to data coords with respect to ax
                 ax_coord = inv.transform(display_coord)
-                return "Координата: {:.0f},   коэф. заполнения: {:.0f},   время: {:.2f}".format(ax_coord[1], y, x)
+                return "Координата: {:.0f},   коэф. заполнения: {:.0f},   время: {:.4f}".format(ax_coord[1], y, x)
 
         return format_coord
 

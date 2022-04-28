@@ -6,13 +6,11 @@ import serial
 
 package_length = 27
 left_lim = 1500  # 0x600 is a quarter
-right_lim = 1700
+right_lim = 2500
 zero_point_current = 3135
 fields = ["Time COM", "Time OBJ", "COM", "OBJ", "Duty", "Dir", "Frequency", "Current"]
-baudrate = 115200
-frequency_of_sending = 2000 #hz
+baudrate = 230400
 
-last_function_execution = time.perf_counter()
 
 def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, frequencies):
     global package_length, left_lim, right_lim, fields, last_function_execution
@@ -27,7 +25,6 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
     frequency_to_change_periods = 6
     periods_to_use2 = 13
     periods_to_rec2 = (9, 10, 11)
-    delta_time_func_exec = 1 / frequency_of_sending
     try:
         number_of_frequencies = len(frequencies)
         if number_of_frequencies == 0:
@@ -74,6 +71,7 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
                         period += 1
                     # страшный ужасающий костыль (это все должно быть под период == 4)
                     # но в этом случае процесс выполняется слишком быстро и виснет
+                    send_signal(signal, ser)
                     line = ser.read(size=package_length)
                     if first_time:
                         initial_com_time = float(int.from_bytes(line[4:12], "little")) / 80000000
@@ -103,9 +101,6 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
                             block_half_freq_switching_kostil = False
                             periods_to_use = periods_to_use2
                             periods_to_rec = periods_to_rec2
-                    if time.perf_counter() - last_function_execution > delta_time_func_exec:  # to make function run at lower than certain frequency
-                        last_function_execution = time.perf_counter()
-                        send_signal(signal, ser)
     except Exception as e:
         print(f"Exception in lakh process : {e}")
         ser.close()
@@ -120,7 +115,6 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
     k = 0
     first_time = True
     signal = 0
-    delta_time_func_exec = 1/frequency_of_sending
     try:
         ser.baudrate = baudrate
         ser.timeout = 1
@@ -132,6 +126,7 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
                   newline='') as csv_file:
             csv_writer = csv.DictWriter(csv_file, fieldnames=fields)
             csv_writer.writeheader()
+            send_signal(2150, ser)
             while True:
                 lock.acquire()
                 stop = stop_flag.value
@@ -163,9 +158,7 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
                         signal = sin(2 * pi * k)
                         signal += 1
                         signal = (signal * (right_lim - left_lim)) / 2 + left_lim
-                        if time.perf_counter() - last_function_execution > delta_time_func_exec:  # to make function run at lower than certain frequency
-                            last_function_execution = time.perf_counter()
-                            send_signal(signal, ser)
+                        send_signal(signal, ser)
                     elif mode.value == 1:
                         # меандр
                         if not (Hz == 0):
@@ -175,9 +168,7 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
                                     signal = left_lim
                                 else:
                                     signal = right_lim
-                                if time.perf_counter() - last_function_execution > delta_time_func_exec:  # to make function run at lower than certain frequency
-                                    last_function_execution = time.perf_counter()
-                                    send_signal(signal, ser)
+                                send_signal(signal, ser)
     except Exception as e:
         print(f"Serial exception in process : {e}")
         ser.close()
@@ -185,7 +176,7 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
 
 
 def send_signal(signal, ser):
-    ser.write(bytes([0xab, 0xbc]) + int(signal).to_bytes(2, 'big') + bytes([0xef, 0xef]))
+    ser.write(int(signal).to_bytes(2, 'little'))
 
 
 def decode_line(line, initial_com_time, initial_obj_time, current_frequency):
