@@ -4,27 +4,27 @@ import matplotlib.pyplot as plt
 import os
 import re
 import numpy as np
+from src_processes import t_s
 
 
 def make_format(other, current, buffers):
     # current and other are axes
     def format_coord(x, y):
         # x, y are data coordinates
-        if len(buffers['buffer_xcom']):
-            com = np.interp(x, buffers['buffer_xcom'], buffers['buffer_ycom'])
-            obj = np.interp(x, buffers['buffer_xcom'], buffers['buffer_yobj'])
-            duty = np.interp(x, buffers['buffer_xcom'], buffers['buffer_duty'])
-            tok = np.interp(x, buffers['buffer_xcom'], buffers['buffer_tok'])
+        if len(buffers['buffer_time']):
+            com = np.interp(x, buffers['buffer_time'], buffers['buffer_com'])
+            obj = np.interp(x, buffers['buffer_time'], buffers['buffer_obj'])
+            duty = np.interp(x, buffers['buffer_time'], buffers['buffer_duty'])
             return (
-                "Упр. сигнал: {:.0f},   вых. сигнал: {:.0f},   коэф. заполнения: {:.0f},   время: {:.2f}, ток: {:.2f} A".format(
-                    com, obj, duty, x, tok))
+                "Упр. сигнал: {:.0f},   вых. сигнал: {:.0f},   коэф. заполнения: {:.0f},   время: {:.2f}".format(
+                    com, obj, duty, x))
         else:
             # convert to display coords
             display_coord = current.transData.transform((x, y))
             inv = other.transData.inverted()
             # convert back to data coords with respect to ax
             ax_coord = inv.transform(display_coord)
-            return "Координата: {:.0f},   коэф. заполнения: {:.0f},   время: {:.2f} мс".format(ax_coord[1], y, x)
+            return "Координата: {:.0f},   коэф. заполнения: {:.0f},   время: {:.4f} мс".format(ax_coord[1], y, x)
 
     return format_coord
 
@@ -45,25 +45,21 @@ def find_latest_file():
 
 
 def read_from_csv(filename):
-    buffer_xcom, buffer_ycom, buffer_xobj, buffer_yobj, \
-    buffer_duty, buffer_dir, buffer_tok, buffer_v = [], [], [], [], [], [], [], []
+    buffer_time, buffer_com, buffer_obj, buffer_duty = [], [], [], []
     try:
         print("Opening file: {}".format(filename))
         with open(filename, "r", newline='') as csv_file:
             reader = csv.DictReader(csv_file)
+            time = 0
             for row in reader:
-                if row != {'Time COM': '0', 'Time OBJ': '0', 'COM': '0', 'OBJ': '0',
-                           'Duty': '0', 'Dir': 0, 'Current': 0}:
-                    buffer_xcom.append(float(row['Time COM']))
-                    buffer_ycom.append(int(row['COM']))
-                    buffer_xobj.append(float(row['Time OBJ']))
-                    buffer_yobj.append(int(row['OBJ']))
+                if row != {'Frequency': '0', 'COM': '0', 'OBJ': '0',
+                           'Duty': '0'}:
+                    time += t_s
+                    buffer_time.append(time)
+                    buffer_com.append(int(row['COM']))
+                    buffer_obj.append(int(row['OBJ']))
                     buffer_duty.append(int(row['Duty']))
-                    buffer_dir.append(int(row['Dir']))
-                    buffer_tok.append(float(row['Current']))
-        return {'buffer_xcom': buffer_xcom, 'buffer_ycom': buffer_ycom, 'buffer_xobj': buffer_xobj,
-        'buffer_yobj': buffer_yobj, 'buffer_duty': buffer_duty, 'buffer_dir': buffer_dir,
-        'buffer_tok': buffer_tok, 'buffer_v': buffer_v}
+        return {'buffer_time': buffer_time, 'buffer_com': buffer_com, 'buffer_obj': buffer_obj, 'buffer_duty': buffer_duty}
     except FileNotFoundError as e:
         print(e)
         return None
@@ -79,15 +75,12 @@ def plot_and_show(buffers, filename):
     ax.set_ylim(0, 4100)
     ax2.set_ylim(0, 4100)
     ax2.set_yticklabels([])
-    line1, = ax.plot(buffers['buffer_xcom'], buffers['buffer_ycom'], label='Управляющий сигнал')
-    line2, = ax.plot(buffers['buffer_xobj'], buffers['buffer_yobj'], label='Значение с потенциометра')
-    line3, = ax2.plot(buffers['buffer_xcom'], buffers['buffer_duty'], label='Коэффициент заполнения', color='green',
+    line1, = ax.plot(buffers['buffer_time'], buffers['buffer_com'], label='Управляющий сигнал')
+    line2, = ax.plot(buffers['buffer_time'], buffers['buffer_obj'], label='Значение с потенциометра')
+    line3, = ax2.plot(buffers['buffer_time'], buffers['buffer_duty'], label='Коэффициент заполнения', color='green',
                       linewidth=0.5)
-    line4, = ax2.plot(buffers['buffer_xcom'], buffers['buffer_dir'], label='Направление движения', color='red',
-                      linewidth=0.5)
-    line5, = ax3.plot(buffers['buffer_xobj'], buffers['buffer_tok'], label='Ток', color='purple', linewidth=0.7)
     fig.canvas.manager.set_window_title(filename)
-    plt.xlabel("[мс]")
+    plt.xlabel("[с]")
     fig.legend()
     plt.show()
 

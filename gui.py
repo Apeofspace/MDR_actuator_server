@@ -9,13 +9,16 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from queue import Empty
 
-import src_processes
 from src_processes import *
 import fourier
 import numpy as np
 
 
 class MainWindow(tk.Frame):
+    t_s = 1/1000  # частота дискретизации (также надо поменять в LAFCH)
+    buffer_size = 16000
+    show_on_plot = 4000
+
     def __init__(self, parent, connected_flag, stop_flag, msg_queue, main_queue, lock, hertz, mode, *args, **kwargs):
         tk.Frame.__init__(self, parent, *args, **kwargs)
         self.connected_flag = connected_flag
@@ -27,21 +30,17 @@ class MainWindow(tk.Frame):
         self.reader_process = None
         self.lakh_process = None
         self.mode = mode
-        self.buffer_size = 16000
-        self.show_on_plot = 4000
         self.lakh_time_offset = 0
         self.lakh_stripe = True
-        buffer_names = ['Time COM',
-                        'COM',
-                        'Time OBJ',
+        self.n = 0
+        buffer_names = ['COM',
                         'OBJ',
                         'Duty',
-                        'Dir',
+                        'Time',
                         'Frequency',
                         'lah',
                         'lfh',
-                        'log_omega',
-                        'Current']
+                        'log_omega']
         self.buffers = {name: [] for name in buffer_names}
         # TabControl
         self.tabControl = ttk.Notebook(self)
@@ -71,11 +70,11 @@ class MainWindow(tk.Frame):
         self.ax2_anim.format_coord = self.make_format(self.ax1_anim, self.ax2_anim)
         self.line_duty, = self.ax2_anim.plot(0, 0, label='Коэффициент заполнения',
                                              color='green', linewidth=0.5)
-        self.line_dir, = self.ax2_anim.plot(0, 0, label='Направление движения',
-                                            color='red', linewidth=0.5)
+        # self.line_dir, = self.ax2_anim.plot(0, 0, label='Направление движения',
+        #                                     color='red', linewidth=0.5)
         self.line_COM, = self.ax1_anim.plot(0, 0, label='Управляющий сигнал')
         self.line_OBJ, = self.ax1_anim.plot(0, 0, label='Значение с потенциометра')
-        self.line_CUR, = self.ax3_current.plot(0, 0, label='Ток', color='purple', linewidth=0.7)
+        # self.line_CUR, = self.ax3_current.plot(0, 0, label='Ток', color='purple', linewidth=0.7)
         self.fig_anim.legend(fontsize='small')
         self.ax1_anim.set_ylim(0, 4100)
         self.ax2_anim.set_ylim(0, 4100)
@@ -111,7 +110,7 @@ class MainWindow(tk.Frame):
         self.COMbobox['state'] = 'readonly'
         self.COMbobox.bind('<Button-1>', lambda func: self.COMbobox_modified_callback())
         try:
-            self.COMbobox.current(len(self.COMbobox['values'])-1)
+            self.COMbobox.current(len(self.COMbobox['values']) - 1)
         except:
             print('no items for combobox')
         self.COMbobox.pack(side='left')
@@ -136,8 +135,7 @@ class MainWindow(tk.Frame):
         self.init_lakh_plot()
         # frequencies
         self.hertz_lakh_var = tk.StringVar()
-        self.hertz_lakh_var.set("1 1.5 2 2.5 3 3.5 4 5 6 7 8 9 10 12 14")
-        # self.hertz_lakh_var.set("1, 6, 9, 12")  # максимально укороченная тестовая программа
+        self.hertz_lakh_var.set("1 2 3 4 5 6.3 10 16 25 40")
         self.hertz_lakh_label = tk.Label(self.tab_lakh, text="Частоты [Гц]: ")
         self.hertz_lakh_entry = tk.Entry(self.tab_lakh, textvariable=self.hertz_lakh_var, width=70)
         self.hertz_lakh_label.pack(side='left', padx=10)
@@ -148,7 +146,7 @@ class MainWindow(tk.Frame):
         self.ax1_lakh.set_xticks(np.arange(-2, 5, step=1))
         self.ax1_lakh.set_yticks(np.arange(-300, 300, step=20))
         self.ax1_lakh.set_ylim(-180, 20)
-        self.ax1_lakh.set_xlim(-1, 2)
+        self.ax1_lakh.set_xlim(0, 3)
         self.ax2_lakh.set_ylim(0, 4100)
         self.ax1_lakh.grid(b=True, which='major', axis='both')
         self.ax2_lakh.grid(b=True, which='major', axis='both')
@@ -159,22 +157,18 @@ class MainWindow(tk.Frame):
         while self.main_queue.qsize():
             try:
                 buf = self.main_queue.get()
+                self.buffers["Time"].append(round(i * self.t_s, 4))
                 i += 1
-                # dict apprehension instead of append
+                # to change later: dict apprehension instead of append
                 for key in buf.keys():
                     self.buffers[key].append(buf[key])
             except Empty:
                 # doesnt ever work with manager ques, ugh..
                 print("empty que =(")
         print(f"\nЧастота = {self.buffers['Frequency'][0]} Гц\nКоличество точек = {i}")
-        # lah, lfh = fourier.LAFCH(self.buffers['OBJ'],
-        #                          self.buffers['COM'],
-        #                          self.buffers['Time COM'],
-        #                          self.buffers['Frequency'][0])
         lah, lfh = fourier.LAFCH(self.buffers['OBJ'],
                                  self.buffers['COM'],
-                                 self.buffers['Time COM'],
-                                 self.buffers['Time OBJ'],
+                                 self.buffers['Time'],
                                  self.buffers['Frequency'][0])
         self.buffers['lah'].append(lah)
         self.buffers['lfh'].append(lfh)
@@ -183,34 +177,42 @@ class MainWindow(tk.Frame):
         self.line_lakh_amp.set_data(self.buffers['log_omega'], self.buffers['lah'])
         self.line_lakh_phase.set_data(self.buffers['log_omega'], self.buffers['lfh'])
         print(f'time offset is {self.lakh_time_offset} on frequency {self.buffers["Frequency"][0]}')
-        offset_time_buffer = [t + self.lakh_time_offset for t in self.buffers['Time COM']]
+        offset_time_buffer = [t + self.lakh_time_offset for t in self.buffers['Time']]
         line_lakh_com = self.ax2_lakh.plot(offset_time_buffer, self.buffers['COM'],
                                            color=u'#1f77b4')
         line_lakh_obj = self.ax2_lakh.plot(offset_time_buffer, self.buffers['OBJ'],
                                            color=u'#ff7f0e')
-        line_lakh_duty = self.ax2_lakh.plot(offset_time_buffer, self.buffers['Duty'],
-                                            color='green', linewidth=0.5)
-        lakh_line_lin_com = self.ax2_lakh.plot(offset_time_buffer, fourier.fourier(self.buffers['Time COM'],
+        # line_lakh_duty = self.ax2_lakh.plot(offset_time_buffer, self.buffers['Duty'],
+        #                                     color='green', linewidth=0.5)
+        lakh_line_lin_com = self.ax2_lakh.plot(offset_time_buffer, fourier.fourier(self.buffers['Time'],
                                                                                    self.buffers['COM'],
                                                                                    self.buffers['Frequency'][0])
                                                , color="pink", linewidth=0.5)
-        lakh_line_lin_obj = self.ax2_lakh.plot(offset_time_buffer, fourier.fourier(self.buffers['Time COM'],
+        lakh_line_lin_obj = self.ax2_lakh.plot(offset_time_buffer, fourier.fourier(self.buffers['Time'],
                                                                                    self.buffers['OBJ'],
                                                                                    self.buffers['Frequency'][0])
                                                , color="purple", linewidth=0.5)
+        # lakh_line_lin_com2 = self.ax2_lakh.plot(offset_time_buffer, fourier.fourier2(self.buffers['Time'],
+        #                                                                            self.buffers['COM'],
+        #                                                                            self.buffers['Frequency'][0])
+        #                                        , color="brown", linewidth=1)
+        # lakh_line_lin_obj2= self.ax2_lakh.plot(offset_time_buffer, fourier.fourier2(self.buffers['Time'],
+        #                                                                            self.buffers['OBJ'],
+        #                                                                            self.buffers['Frequency'][0])
+        #                                        , color="teal", linewidth=1)
         # print(f'about to put text on freq = {self.buffers["Frequency"][0]} Hz')
         self.ax2_lakh.text(self.lakh_time_offset, 3800,
                            s=f"{self.buffers['Frequency'][0]} Гц", fontsize='small', fontstretch='semi-condensed',
                            fontweight='ultralight', clip_on=True)
         self.lakh_stripe = not self.lakh_stripe
         if self.lakh_stripe:
-            self.ax2_lakh.bar(self.lakh_time_offset, width=self.buffers['Time COM'][-1], align='edge',
+            self.ax2_lakh.bar(self.lakh_time_offset, width=self.buffers['Time'][-1], align='edge',
                               height=4100, color=u'#e3e3e3')
-        self.lakh_time_offset += self.buffers['Time COM'][-1]
-        #это просто средняя линия вокруг которой должна в теории идти синусоида
+        self.lakh_time_offset += self.buffers['Time'][-1]
+        # это просто средняя линия вокруг которой должна в теории идти синусоида
         self.ax2_lakh.plot([offset_time_buffer[0], offset_time_buffer[-1]],
-                           [(src_processes.right_lim-src_processes.left_lim)/2+src_processes.left_lim,
-                            (src_processes.right_lim-src_processes.left_lim)/2+src_processes.left_lim],
+                           [(right_lim - left_lim) / 2 + left_lim,
+                            (right_lim - left_lim) / 2 + left_lim],
                            color="black", linewidth=0.5)
         plt.draw()
         for key in self.buffers.keys():
@@ -239,16 +241,15 @@ class MainWindow(tk.Frame):
             y_com = self.buffers["COM"]
             y_obj = self.buffers["OBJ"]
             y_duty = self.buffers["Duty"]
-            x_time = self.buffers['Time COM']
-            y_tok = self.buffers['Current']
+            x_time = self.buffers['Time']
+            # y_tok = self.buffers['Current']
             if len(x_time):
                 com = np.interp(x, x_time, y_com)
                 obj = np.interp(x, x_time, y_obj)
                 duty = np.interp(x, x_time, y_duty)
-                tok = np.interp(x, x_time, y_tok)
                 return (
-                    "Упр. сигнал: {:.0f},   вых. сигнал: {:.0f},   коэф. заполнения: {:.0f},   время: {:.4f} с, ток: {:.2f} A".format(
-                        com, obj, duty, x, tok))
+                    "Упр. сигнал: {:.0f},   вых. сигнал: {:.0f},   коэф. заполнения: {:.0f},   время: {:.4f} с,".format(
+                        com, obj, duty, x))
             else:
                 # convert to display coords
                 display_coord = current.transData.transform((x, y))
@@ -265,13 +266,15 @@ class MainWindow(tk.Frame):
             y_lah = self.buffers["lah"]
             y_lfh = self.buffers["lfh"]
             x_log_omega = self.buffers['log_omega']
-            hz = pow(10, x)
+            rad = pow(10, x)
+            hz = rad /(2 * pi)
             if len(y_lah):
                 lm = np.interp(x, x_log_omega, y_lah)
                 ksi = np.interp(x, x_log_omega, y_lfh)
                 return "В декадах: {:.2f},   в Гц: {:.2f},  Lm: {:.1f},  \u03C8: {:.1f}".format(x, hz, lm, ksi)
             else:
                 return "В декадах: {:.2f},   в Гц: {:.2f},  y: {:.1f}}".format(x, hz, y)
+
         return format_coord
 
     def button_press(self):
@@ -282,26 +285,33 @@ class MainWindow(tk.Frame):
 
     def animate(self, i):
         if self.connected_flag.value == 0:
+
             self.animation.pause()  # костыль без которого не ставится на паузу в начале почему-то
             return
         while self.main_queue.qsize():
             try:
                 buf = self.main_queue.get()
+                self.buffers["Time"].append(round(self.n * self.t_s, 4))
+                self.n += 1
                 for key in buf.keys():
                     self.buffers[key].append(buf[key])
-                if len(self.buffers["Time COM"]) > self.buffer_size:
+                # print(self.buffers)
+                if len(self.buffers["Time"]) > self.buffer_size:
                     for list in self.buffers.values():
                         if len(list):
                             list.pop(0)
-                if len(self.buffers["Time COM"]) > self.show_on_plot:
-                    self.ax1_anim.set_xlim(self.buffers["Time COM"][-self.show_on_plot], self.buffers["Time COM"][-1])
-                elif len(self.buffers["Time COM"]) > 1:
-                    self.ax1_anim.set_xlim(self.buffers["Time COM"][0], self.buffers["Time COM"][-1])
-                self.line_COM.set_data(self.buffers["Time COM"], self.buffers["COM"])
-                self.line_OBJ.set_data(self.buffers["Time OBJ"], self.buffers["OBJ"])
-                self.line_duty.set_data(self.buffers["Time COM"], self.buffers["Duty"])
-                self.line_dir.set_data(self.buffers["Time COM"], self.buffers["Dir"])
-                self.line_CUR.set_data(self.buffers["Time OBJ"], self.buffers["Current"])
+                if len(self.buffers["Time"]) > self.show_on_plot:
+                    # print(f'{self.buffers["Time"][-self.show_on_plot]=}, {self.buffers["Time"][-1]=}')
+                    self.ax1_anim.set_xlim(self.buffers["Time"][-self.show_on_plot], self.buffers["Time"][-1])
+                elif len(self.buffers["Time"]) > 1:
+                    # print(f'{self.buffers["Time"][0]=}, {self.buffers["Time"][-1]=}')
+                    self.ax1_anim.set_xlim(self.buffers["Time"][0], self.buffers["Time"][-1])
+                # print(f'{self.n=}')
+                self.line_COM.set_data(self.buffers["Time"], self.buffers["COM"])
+                self.line_OBJ.set_data(self.buffers["Time"], self.buffers["OBJ"])
+                self.line_duty.set_data(self.buffers["Time"], self.buffers["Duty"])
+                # self.line_dir.set_data(self.buffers["Time COM"], self.buffers["Dir"])
+                # self.line_CUR.set_data(self.buffers["Time OBJ"], self.buffers["Current"])
             except Empty:
                 # this doesnt work with manager que for some reason
                 print("empty que =(")
@@ -313,7 +323,6 @@ class MainWindow(tk.Frame):
             if self.msg_queue.empty() is False:
                 msg = self.msg_queue.get()
                 if msg == "draw":
-                    # print("time to draw!")
                     self.lakh_plot()
                 else:
                     self.disconnect()
@@ -394,6 +403,7 @@ class MainWindow(tk.Frame):
                         self.label_status.configure(text=f'Подключено к {msg}')
                         self.button_connect.configure(text="Отключиться")
                         self.check_msg()
+        self.n = 0
 
     def disconnect(self):
         # этот спагетти код можно уменьшить
