@@ -5,14 +5,16 @@ from math import sin, pi
 import serial
 
 package_length = 8
-left_lim = 1800  # 0x600 is a quarter
-right_lim = 2800
+# left_lim = 800  # 0x600 is a quarter
+# right_lim = 3800
+middle_point = 2300
+one_degree = 100
 zero_point_current = 3135
 fields = ["Frequency", "COM", "OBJ", "Duty"]
 baudrate = 230400
 t_s = 1/1000  # частота дискретизации
 
-def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, frequencies):
+def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, frequencies, amplitude):
     global package_length, left_lim, right_lim, fields
     print("lakh process started")
     ser = serial.Serial()
@@ -24,6 +26,7 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
     frequency_to_change_periods = 6
     periods_to_use2 = 13
     periods_to_rec2 = (10,)
+    amp = amplitude.value
     try:
         number_of_frequencies = len(frequencies)
         if number_of_frequencies == 0:
@@ -58,9 +61,8 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
                     dt = t_new - told
                     told = t_new
                     k = k + dt * float(current_frequency)  # цифра это герцы
-                    signal = sin(2 * pi * k)
-                    signal += 1
-                    signal = (signal * (right_lim - left_lim)) / 2 + left_lim
+                    signal = one_degree * amp * sin(2 * pi * k)
+                    signal += middle_point
                     if k > (kold + 1):
                         # обнаружена смена периода
                         kold = k
@@ -101,13 +103,16 @@ def lakh_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, fr
         msg_queue.put(e)
 
 
-def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, hertz, mode):
-    global package_length, left_lim, right_lim, fields
+def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, hertz, mode, amplitude):
+    global package_length, fields
     print("process started")
     ser = serial.Serial()
     told = time.perf_counter()
     k = 0
     signal = 0
+    amp = amplitude.value
+    right_lim = middle_point + one_degree * amp
+    left_lim = middle_point
     try:
         ser.baudrate = baudrate
         ser.timeout = 1
@@ -125,6 +130,7 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
                 stop = stop_flag.value
                 connected = connected_flag.value
                 Hz = hertz.value
+                amp = amplitude.value
                 lock.release()
                 if stop:
                     print("stopping process")
@@ -144,19 +150,18 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
                         # синусоида
                         told = t_new
                         k = k + dt * float(Hz)  # цифра это герцы
-                        signal = sin(2 * pi * k)
-                        signal += 1
-                        signal = (signal * (right_lim - left_lim)) / 2 + left_lim
+                        signal = one_degree * amp * sin(2 * pi * k)
+                        signal += middle_point
                         send_signal(signal, ser)
                     elif mode.value == 1:
                         # меандр
                         if not (Hz == 0):
                             if dt > 1 / Hz:
                                 told = t_new
-                                if signal == right_lim:
-                                    signal = left_lim
-                                else:
+                                if signal == left_lim:
                                     signal = right_lim
+                                else:
+                                    signal = left_lim
                             send_signal(signal, ser)
     except Exception as e:
         print(f"Serial exception in process : {e}")

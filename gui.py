@@ -15,11 +15,12 @@ import numpy as np
 
 
 class MainWindow(tk.Frame):
-    t_s = 1/1000  # частота дискретизации (также надо поменять в LAFCH)
+    t_s = 1 / 1000  # частота дискретизации (также надо поменять в LAFCH)
     buffer_size = 16000
     show_on_plot = 4000
 
-    def __init__(self, parent, connected_flag, stop_flag, msg_queue, main_queue, lock, hertz, mode, *args, **kwargs):
+    def __init__(self, parent, connected_flag, stop_flag, msg_queue, main_queue, lock, hertz, amp, mode, *args,
+                 **kwargs):
         tk.Frame.__init__(self, parent, *args, **kwargs)
         self.connected_flag = connected_flag
         self.stop_flag = stop_flag
@@ -27,6 +28,7 @@ class MainWindow(tk.Frame):
         self.lock = lock
         self.main_queue = main_queue
         self.hertz = hertz
+        self.amp = amp
         self.reader_process = None
         self.lakh_process = None
         self.mode = mode
@@ -89,7 +91,19 @@ class MainWindow(tk.Frame):
         self.hertz_var.trace("w", lambda name, index, mode, hertz_var=self.hertz_var: self.hertz_callback(hertz_var))
         self.hertz_entry = tk.Entry(self.tab_animation, textvariable=self.hertz_var)
         self.hertz_entry.pack(side='left', padx=(0, 15))
+        # amplitude
+        self.amplitude_label = tk.Label(self.tab_animation, text='Амплитуда [град]: ')
+        self.amplitude_label.pack(side='left', padx=(5, 10))
+        self.amplitude_var = tk.StringVar()
+        self.amplitude_var.set(self.amp.value)
+        self.amplitude_var.trace("w",
+                                 lambda name, index, mode, amplitude_var=self.amplitude_var: self.amplitude_callback(
+                                     amplitude_var))
+        self.amplitude_entry = tk.Entry(self.tab_animation, textvariable=self.amplitude_var)
+        self.amplitude_entry.pack(side='left', padx=(0, 15))
         # mode combobox
+        self.mode_label = tk.Label(self.tab_animation, text='Тип сигнала: ')
+        self.mode_label.pack(side='left', padx=(5, 10))
         self.mode_combobox_var = tk.StringVar()
         self.mode_combobox = tk.ttk.Combobox(self.tab_animation, textvariable=self.mode_combobox_var)
         self.mode_combobox['values'] = ["Синусоида", "Меандр"]
@@ -133,13 +147,24 @@ class MainWindow(tk.Frame):
         self.line_lakh_phase, = self.ax1_lakh.plot(0, 0, label="\u03C8", marker='.')
         # visuals
         self.init_lakh_plot()
+        # amplitude
+        self.amplitude_label_lakh = tk.Label(self.tab_lakh, text='Амплитуда [град]: ')
+        self.amplitude_label_lakh.pack(side='left', padx=10)
+        if self.amplitude_var is None:
+            self.amplitude_var = tk.StringVar()
+            self.amplitude_var.set(self.amp.value)
+            self.amplitude_var.trace("w", lambda name, index, mode,
+                                                 amplitude_var=self.amplitude_var: self.amplitude_callback(
+                amplitude_var))
+        self.amplitude_entry_lakh = tk.Entry(self.tab_lakh, textvariable=self.amplitude_var)
+        self.amplitude_entry_lakh.pack(side='left', padx=(0, 15))
         # frequencies
         self.hertz_lakh_var = tk.StringVar()
         self.hertz_lakh_var.set("1 2 3 4 5 6.3 10 16 25 40")
         # self.hertz_lakh_var.set("1 2 6.3 10 16 25 40")
         self.hertz_lakh_label = tk.Label(self.tab_lakh, text="Частоты [Гц]: ")
         self.hertz_lakh_entry = tk.Entry(self.tab_lakh, textvariable=self.hertz_lakh_var, width=70)
-        self.hertz_lakh_label.pack(side='left', padx=10)
+        self.hertz_lakh_label.pack(side='left', padx=(5, 10))
         self.hertz_lakh_entry.pack(side='left')
 
     def init_lakh_plot(self):
@@ -212,9 +237,7 @@ class MainWindow(tk.Frame):
         self.lakh_time_offset += self.buffers['Time'][-1]
         # это просто средняя линия вокруг которой должна в теории идти синусоида
         self.ax2_lakh.plot([offset_time_buffer[0], offset_time_buffer[-1]],
-                           [(right_lim - left_lim) / 2 + left_lim,
-                            (right_lim - left_lim) / 2 + left_lim],
-                           color="black", linewidth=0.5)
+                           [middle_point, middle_point], color="black", linewidth=0.5)
         plt.draw()
         for key in self.buffers.keys():
             if key not in ("lah", "lfh", "log_omega"):
@@ -234,6 +257,15 @@ class MainWindow(tk.Frame):
         else:
             hertz_var.set('')
             self.hertz.value = 0
+
+    def amplitude_callback(self, amplitude_var):
+        d = re.match("(\d+(\.)?(\d+)?)", amplitude_var.get())
+        if d is not None:
+            amplitude_var.set(d.group(1))
+            self.amp.value = float(d.group(1))
+        else:
+            amplitude_var.set('')
+            self.amp.value = 0
 
     def make_format(self, other, current):
         # current and other are axes
@@ -268,7 +300,7 @@ class MainWindow(tk.Frame):
             y_lfh = self.buffers["lfh"]
             x_log_omega = self.buffers['log_omega']
             rad = pow(10, x)
-            hz = rad /(2 * pi)
+            hz = rad / (2 * pi)
             if len(y_lah):
                 lm = np.interp(x, x_log_omega, y_lah)
                 ksi = np.interp(x, x_log_omega, y_lfh)
@@ -286,7 +318,6 @@ class MainWindow(tk.Frame):
 
     def animate(self, i):
         if self.connected_flag.value == 0:
-
             self.animation.pause()  # костыль без которого не ставится на паузу в начале почему-то
             return
         while self.main_queue.qsize():
@@ -346,7 +377,7 @@ class MainWindow(tk.Frame):
                 print("process starting...")
                 self.reader_process = multiprocessing.Process(target=read_process, args=(
                     self.stop_flag, self.connected_flag, com_port, self.lock, self.main_queue, self.msg_queue,
-                    self.hertz, self.mode), daemon=True)
+                    self.hertz, self.mode, self.amp), daemon=True)
                 self.reader_process.start()
                 with self.lock:
                     self.connected_flag.value = 1
@@ -382,7 +413,7 @@ class MainWindow(tk.Frame):
                 print("lakh process starting...")
                 self.lakh_process = multiprocessing.Process(target=lakh_process, args=(
                     self.stop_flag, self.connected_flag, com_port, self.lock, self.main_queue, self.msg_queue,
-                    frequencies), daemon=True)
+                    frequencies, self.amp), daemon=True)
                 self.lakh_process.start()
                 with self.lock:
                     self.connected_flag.value = 1
