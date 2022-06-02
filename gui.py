@@ -46,8 +46,8 @@ class MainWindow(tk.Frame):
         self.tabControl = ttk.Notebook(self)
         self.tab_animation = tk.Frame(self)
         self.tab_lakh = tk.Frame(self)
-        self.tabControl.add(self.tab_animation, text='Анимация')
-        self.tabControl.add(self.tab_lakh, text='ЛАХ')
+        self.tabControl.add(self.tab_animation, text='Отслеживание')
+        self.tabControl.add(self.tab_lakh, text='ЛАФЧХ')
         self.tabControl.pack(side='top', fill='both', expand=True)
 
         self.draw_animation_tab()
@@ -136,6 +136,7 @@ class MainWindow(tk.Frame):
         # frequencies
         self.hertz_lakh_var = tk.StringVar()
         self.hertz_lakh_var.set("1 2 3 4 5 6.3 10 16 25 40")
+        # self.hertz_lakh_var.set("1 2 6.3 10 16 25 40")
         self.hertz_lakh_label = tk.Label(self.tab_lakh, text="Частоты [Гц]: ")
         self.hertz_lakh_entry = tk.Entry(self.tab_lakh, textvariable=self.hertz_lakh_var, width=70)
         self.hertz_lakh_label.pack(side='left', padx=10)

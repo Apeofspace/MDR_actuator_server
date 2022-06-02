@@ -5,8 +5,8 @@ from math import sin, pi
 import serial
 
 package_length = 8
-left_lim = 1000  # 0x600 is a quarter
-right_lim = 2000
+left_lim = 1800  # 0x600 is a quarter
+right_lim = 2800
 zero_point_current = 3135
 fields = ["Frequency", "COM", "OBJ", "Duty"]
 baudrate = 230400
@@ -157,7 +157,7 @@ def read_process(stop_flag, connected_flag, com_port, lock, queue, msg_queue, he
                                     signal = left_lim
                                 else:
                                     signal = right_lim
-                                send_signal(signal, ser)
+                            send_signal(signal, ser)
     except Exception as e:
         print(f"Serial exception in process : {e}")
         ser.close()

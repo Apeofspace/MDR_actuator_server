@@ -16,7 +16,7 @@ def normal_start():
     mode = multiprocessing.Value("i", 0)
     lock = multiprocessing.Lock()
     root = tk.Tk()
-    root.title("Sin Animation")
+    root.title("Пульт управления")
     main_window = MainWindow(root, connected_flag, stop_flag, msg_queue, main_queue, lock, hertz, mode)
     main_window.pack(side="top", fill="both", expand=True)
     root.wm_protocol("WM_DELETE_WINDOW", main_window.on_closing)
